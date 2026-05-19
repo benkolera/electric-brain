@@ -51,20 +51,20 @@ defmodule ElectricbrainWeb.LiveUserAuth do
 
     cond do
       not is_binary(tz) ->
-        {:cont, socket}
+        {:halt, socket}
 
       user.timezone == tz ->
-        {:cont, socket}
+        {:halt, socket}
 
       not Electricbrain.Timezones.valid?(tz) ->
-        {:cont, socket}
+        {:halt, socket}
 
       true ->
         case user
              |> Ash.Changeset.for_update(:set_timezone, %{timezone: tz}, actor: user)
              |> Ash.update() do
           {:ok, updated} -> {:halt, assign(socket, :current_user, updated)}
-          _ -> {:cont, socket}
+          _ -> {:halt, socket}
         end
     end
   end
