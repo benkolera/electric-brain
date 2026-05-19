@@ -1,0 +1,139 @@
+/* See the Tailwind configuration guide for advanced usage
+   https://tailwindcss.com/docs/configuration */
+
+@import "tailwindcss" source(none);
+
+/* Space Grotesk as the display face for the logo and h1 headings. */
+@theme {
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+}
+@source "../../deps/ash_authentication_phoenix";
+@source "../css";
+@source "../js";
+@source "../../lib/electricbrain_web";
+
+/* A Tailwind plugin that makes "hero-#{ICON}" classes available.
+   The heroicons installation itself is managed by your mix.exs */
+@plugin "../vendor/heroicons";
+
+/* daisyUI Tailwind Plugin. You can update this file by fetching the latest version with:
+   curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.js
+   Make sure to look at the daisyUI changelog: https://daisyui.com/docs/changelog/ */
+@plugin "../vendor/daisyui" {
+  themes: false;
+}
+
+/* Electric Brain — a cyber neon blue, dark-mode-first palette.
+   Update daisyUI by fetching latest with:
+   curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.js */
+@plugin "../vendor/daisyui-theme" {
+  name: "electricbrain";
+  default: true;
+  prefersdark: true;
+  color-scheme: "dark";
+  --color-base-100: #0B0F19;         /* Void Black */
+  --color-base-200: #1A2333;         /* Cyber Slate */
+  --color-base-300: #243044;         /* Lifted Cyber Slate */
+  --color-base-content: #E2E8F0;     /* slightly dimmed body text */
+  --color-primary: #00F0FF;          /* Electric Neon Blue */
+  --color-primary-content: #001318;
+  --color-secondary: #9D00FF;        /* Cyber Purple */
+  --color-secondary-content: #F5EAFF;
+  --color-accent: #00F0FF;
+  --color-accent-content: #001318;
+  --color-neutral: #64748B;          /* Matrix Gray */
+  --color-neutral-content: #FFFFFF;
+  --color-info: #00F0FF;
+  --color-info-content: #001318;
+  --color-success: #4ADE80;
+  --color-success-content: #052E16;
+  --color-warning: #FBBF24;
+  --color-warning-content: #1F1300;
+  --color-error: #F43F5E;
+  --color-error-content: #2A0410;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.21875rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* Add variants based on LiveView classes */
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
+
+/* Single dark theme — `dark:` utilities always apply */
+@custom-variant dark (&:where([data-theme=electricbrain], [data-theme=electricbrain] *));
+
+/* Make LiveView wrapper divs transparent for layout */
+[data-phx-session], [data-phx-teleported-src] { display: contents }
+
+/* Markdown rendering for notes (.markdown wraps the mdex output). */
+.markdown { color: var(--color-base-content); line-height: 1.65; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 {
+  color: var(--color-primary);
+  font-weight: 700;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.2;
+}
+.markdown h1 { font-size: 1.875rem; }
+.markdown h2 { font-size: 1.5rem; }
+.markdown h3 { font-size: 1.25rem; }
+.markdown h4 { font-size: 1.1rem; }
+.markdown p { margin: 0.75em 0; }
+.markdown a {
+  color: var(--color-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.markdown a:hover { filter: brightness(1.2); }
+.markdown ul, .markdown ol { margin: 0.75em 0; padding-left: 1.5em; }
+.markdown ul { list-style: disc; }
+.markdown ol { list-style: decimal; }
+.markdown li { margin: 0.25em 0; }
+.markdown blockquote {
+  border-left: 3px solid var(--color-primary);
+  padding-left: 1rem;
+  margin: 1em 0;
+  color: color-mix(in oklab, var(--color-base-content) 80%, transparent);
+  font-style: italic;
+}
+.markdown code {
+  background: var(--color-base-300);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.9em;
+  color: var(--color-primary);
+}
+.markdown pre {
+  background: var(--color-base-300);
+  border: 1px solid color-mix(in oklab, var(--color-primary) 30%, transparent);
+  padding: 1rem;
+  border-radius: var(--radius-box);
+  overflow-x: auto;
+  margin: 1em 0;
+}
+.markdown pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+.markdown table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  width: 100%;
+}
+.markdown th, .markdown td {
+  border: 1px solid var(--color-base-300);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.markdown th { background: var(--color-base-200); color: var(--color-primary); }
+.markdown hr { border-color: var(--color-base-300); margin: 2em 0; }
+.markdown input[type="checkbox"] { accent-color: var(--color-primary); margin-right: 0.5em; }

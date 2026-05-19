@@ -1,0 +1,19 @@
+{
+  "name": "assets",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@fontsource/space-grotesk": "^5.2.10",
+    "@schedule-x/calendar": "^4.6.0",
+    "@schedule-x/drag-and-drop": "^3.7.3",
+    "@schedule-x/theme-default": "^4.6.0"
+  }
+}
