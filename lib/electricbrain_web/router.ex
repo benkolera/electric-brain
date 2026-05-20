@@ -21,11 +21,20 @@ defmodule ElectricbrainWeb.Router do
     plug :set_actor, :user
   end
 
+  # ALB target group health check — outside :browser, no auth, no session.
+  # Must remain excluded from force_ssl (config/prod.exs) so the ALB's
+  # HTTP probe doesn't get a 301.
+  scope "/", ElectricbrainWeb do
+    get "/health", HealthController, :index
+  end
+
   scope "/", ElectricbrainWeb do
     pipe_through :browser
 
     ash_authentication_live_session :authenticated_routes,
       on_mount: {ElectricbrainWeb.LiveUserAuth, :live_user_required} do
+      live "/", HomeLive, :index
+
       live "/notes", NoteLive.Index, :index
       live "/notes/new", NoteLive.Form, :new
       live "/notes/:id", NoteLive.Show, :show
@@ -35,7 +44,7 @@ defmodule ElectricbrainWeb.Router do
       live "/todos/:id/schedule", TodoLive.Schedule, :show
 
       live "/habits", HabitLive.Index, :index
-      live "/habits/:id/schedule", HabitLive.Schedule, :show
+      live "/habits/:id/edit", HabitLive.Edit, :show
 
       live "/categories", CategoryLive.Index, :index
 
@@ -53,7 +62,6 @@ defmodule ElectricbrainWeb.Router do
   scope "/", ElectricbrainWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
     auth_routes AuthController, Electricbrain.Accounts.User, path: "/auth"
     sign_out_route AuthController
 
