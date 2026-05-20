@@ -156,6 +156,7 @@ defmodule ElectricbrainWeb.Layouts do
 
   defp item_title(%{entry: %{habit: %{title: t}}}) when is_binary(t), do: t
   defp item_title(%{entry: %{todo: %{title: t}}}) when is_binary(t), do: t
+  defp item_title(%{entry: %{time_block: %{title: t}}}) when is_binary(t), do: t
   defp item_title(_), do: "Scheduled"
 
   defp format_time_range(%{entry: %{planned_at: start}, end_time: finish}, tz) do
