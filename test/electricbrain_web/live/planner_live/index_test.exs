@@ -111,6 +111,62 @@ defmodule ElectricbrainWeb.PlannerLive.IndexTest do
     assert Ash.get!(Entry, entry.id, actor: user).planned_at == nil
   end
 
+  test "update_entry_time keeps the local date and applies the new HH:MM + duration",
+       %{conn: conn, user: user, todo: todo} do
+    # User is Etc/UTC by default; planned at 14:00 UTC.
+    entry =
+      Entry
+      |> Ash.Changeset.for_create(
+        :create,
+        %{
+          todo_id: todo.id,
+          week_start: today_monday(user),
+          planned_at: ~U[2026-05-20 14:00:00.000000Z],
+          duration_minutes: 60
+        },
+        actor: user
+      )
+      |> Ash.create!()
+
+    {:ok, view, _html} = live(conn, ~p"/plan")
+
+    render_hook(view, "update_entry_time", %{
+      "entry_id" => entry.id,
+      "start_time" => "09:30",
+      "duration_minutes" => "45"
+    })
+
+    updated = Ash.get!(Entry, entry.id, actor: user)
+    assert updated.planned_at == ~U[2026-05-20 09:30:00.000000Z]
+    assert updated.duration_minutes == 45
+  end
+
+  test "update_entry_time floors duration at 5 minutes", %{conn: conn, user: user, todo: todo} do
+    entry =
+      Entry
+      |> Ash.Changeset.for_create(
+        :create,
+        %{
+          todo_id: todo.id,
+          week_start: today_monday(user),
+          planned_at: ~U[2026-05-20 14:00:00.000000Z],
+          duration_minutes: 30
+        },
+        actor: user
+      )
+      |> Ash.create!()
+
+    {:ok, view, _html} = live(conn, ~p"/plan")
+
+    render_hook(view, "update_entry_time", %{
+      "entry_id" => entry.id,
+      "start_time" => "14:00",
+      "duration_minutes" => "1"
+    })
+
+    assert Ash.get!(Entry, entry.id, actor: user).duration_minutes == 5
+  end
+
   test "remove deletes the entry", %{conn: conn, user: user, todo: todo} do
     entry =
       Entry

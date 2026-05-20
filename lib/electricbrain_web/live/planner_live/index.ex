@@ -531,6 +531,31 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     end
   end
 
+  def handle_event(
+        "update_entry_time",
+        %{"entry_id" => id, "start_time" => start_time, "duration_minutes" => duration_str},
+        socket
+      ) do
+    user = socket.assigns.current_user
+    tz = socket.assigns.timezone
+    entry = Ash.get!(Entry, id, actor: user)
+
+    with {:ok, start_utc} <- local_date_with_time(entry.planned_at, start_time, tz),
+         {duration, ""} <- Integer.parse(duration_str || "") do
+      entry
+      |> Ash.Changeset.for_update(
+        :schedule,
+        %{planned_at: start_utc, duration_minutes: max(duration, 5)},
+        actor: user
+      )
+      |> Ash.update!()
+
+      {:noreply, socket |> load_week() |> push_scheduled_events()}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Invalid time or duration")}
+    end
+  end
+
   def handle_event("entry_clicked", %{"id" => id}, socket) do
     selected = if socket.assigns.selected_entry_id == id, do: nil, else: id
     {:noreply, assign(socket, :selected_entry_id, selected)}
@@ -637,6 +662,34 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
       _ -> :error
     end
   end
+
+  defp entry_start_time_local(entry, tz) do
+    entry.planned_at
+    |> DateTime.shift_zone!(tz)
+    |> Calendar.strftime("%H:%M")
+  end
+
+  # Keep the entry's existing local date and replace the time component
+  # with the user's `HH:MM` input, then shift back to UTC.
+  defp local_date_with_time(planned_at_utc, time_str, tz)
+       when is_binary(time_str) and not is_nil(planned_at_utc) do
+    date =
+      planned_at_utc
+      |> DateTime.shift_zone!(tz)
+      |> DateTime.to_date()
+
+    with [h, m | _] <- String.split(time_str, ":"),
+         {hour, ""} <- Integer.parse(h),
+         {minute, ""} <- Integer.parse(m),
+         {:ok, time} <- Time.new(hour, minute, 0),
+         {:ok, local_dt} <- DateTime.new(date, time, tz) do
+      {:ok, DateTime.shift_zone!(local_dt, "Etc/UTC")}
+    else
+      _ -> :error
+    end
+  end
+
+  defp local_date_with_time(_, _, _), do: :error
 
   @impl true
   def render(assigns) do
@@ -806,6 +859,33 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
                 <p class="text-xs text-neutral-content/60">
                   {format_minutes(entry_duration_minutes(selected))}
                 </p>
+                <form
+                  phx-submit="update_entry_time"
+                  class="mt-2 flex flex-wrap items-center gap-1.5"
+                >
+                  <input type="hidden" name="entry_id" value={selected.id} />
+                  <input
+                    type="time"
+                    name="start_time"
+                    value={entry_start_time_local(selected, @timezone)}
+                    step="60"
+                    required
+                    class="input input-xs input-bordered bg-base-100 font-mono"
+                    title="Start time (local)"
+                  />
+                  <input
+                    type="number"
+                    name="duration_minutes"
+                    value={entry_duration_minutes(selected)}
+                    min="5"
+                    step="5"
+                    required
+                    class="input input-xs input-bordered bg-base-100 w-20"
+                    title="Duration in minutes"
+                  />
+                  <span class="text-xs text-neutral-content/60">min</span>
+                  <button type="submit" class="btn btn-xs btn-primary">Apply</button>
+                </form>
                 <div class="flex gap-1 mt-2">
                   <button
                     type="button"
