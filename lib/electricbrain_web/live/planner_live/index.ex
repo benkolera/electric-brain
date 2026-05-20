@@ -83,7 +83,11 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
           []
 
         true ->
-          duration = schedulable.duration_minutes || 0
+          # Use the per-entry duration (which honors the override that
+          # fixed-schedule habits like Sleep snapshot from their
+          # availability window — their habit-level duration_minutes
+          # is nil so reading it directly would total 0).
+          duration = entry_duration_minutes(entry)
           root_id = Categories.root_id(category_id, categories_by_id)
           [{root_id, duration}]
       end
