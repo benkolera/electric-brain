@@ -78,7 +78,11 @@ defmodule Electricbrain.Neglect do
 
   defp habit_score(habit, timezone, now) do
     start = Timezones.period_start(habit.period, timezone, now)
-    count = Enum.count(habit.completions, &(DateTime.compare(&1.completed_at, start) != :lt))
+
+    count =
+      Enum.count(habit.completions, fn c ->
+        c.completed_at && DateTime.compare(c.completed_at, start) != :lt
+      end)
 
     if count < habit.min_count do
       (habit.min_count - count) * @habit_overdue_factor

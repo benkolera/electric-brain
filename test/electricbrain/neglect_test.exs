@@ -4,6 +4,7 @@ defmodule Electricbrain.NeglectTest do
 
   alias Electricbrain.Categories
   alias Electricbrain.Categories.Category
+  alias Electricbrain.Habits.Completion
   alias Electricbrain.Habits.Habit
   alias Electricbrain.Neglect
   alias Electricbrain.Todos.Todo
@@ -106,6 +107,27 @@ defmodule Electricbrain.NeglectTest do
       # No completions yet → shortfall of 3, score 30
       score = Map.get(Neglect.scores_for_user(user), health.id)
       assert score == 30.0
+    end
+
+    test "in-progress ritual completions (nil completed_at) don't crash scoring",
+         %{user: user, health: health} do
+      habit =
+        Habit
+        |> Ash.Changeset.for_create(
+          :create,
+          %{title: "Morning ritual", category_id: health.id, min_count: 1, period: :day},
+          actor: user
+        )
+        |> Ash.create!()
+
+      Completion
+      |> Ash.Changeset.for_create(:start, %{habit_id: habit.id}, actor: user)
+      |> Ash.create!()
+
+      # The in-progress completion has completed_at=nil; it must not count
+      # toward min_count and must not crash DateTime.compare/2.
+      score = Map.get(Neglect.scores_for_user(user), health.id)
+      assert score == 10.0
     end
 
     test "scores roll up to ancestors", %{user: user, health: health} do
