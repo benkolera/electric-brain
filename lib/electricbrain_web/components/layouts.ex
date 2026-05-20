@@ -5,6 +5,8 @@ defmodule ElectricbrainWeb.Layouts do
   """
   use ElectricbrainWeb, :html
 
+  import ElectricbrainWeb.AgendaHelpers
+
   embed_templates "layouts/*"
 
   attr :flash, :map, required: true, doc: "the map of flash messages"
@@ -13,7 +15,8 @@ defmodule ElectricbrainWeb.Layouts do
 
   attr :wide, :boolean,
     default: false,
-    doc: "drop the page's max-width — for pages like the planner that benefit from a 3-column desktop layout"
+    doc:
+      "drop the page's max-width — for pages like the planner that benefit from a 3-column desktop layout"
 
   slot :inner_block, required: true
 
@@ -146,41 +149,14 @@ defmodule ElectricbrainWeb.Layouts do
           <span class="text-neutral-content/60">Up next</span>
           <span class="font-medium truncate">{item_title(@next)}</span>
           <span class="font-mono text-xs text-neutral-content/60">
-            at {format_clock(@next.entry.planned_at, @timezone)} · in {format_hhmm(minutes_until(@next))}
+            at {format_clock(@next.entry.planned_at, @timezone)} · in {format_hhmm(
+              minutes_until(@next)
+            )}
           </span>
         </div>
       </div>
     </div>
     """
-  end
-
-  defp item_title(%{entry: %{habit: %{title: t}}}) when is_binary(t), do: t
-  defp item_title(%{entry: %{todo: %{title: t}}}) when is_binary(t), do: t
-  defp item_title(%{entry: %{time_block: %{title: t}}}) when is_binary(t), do: t
-  defp item_title(_), do: "Scheduled"
-
-  defp format_time_range(%{entry: %{planned_at: start}, end_time: finish}, tz) do
-    "#{format_clock(start, tz)}–#{format_clock(finish, tz)}"
-  end
-
-  defp format_clock(dt, tz) do
-    dt |> DateTime.shift_zone!(tz) |> Calendar.strftime("%H:%M")
-  end
-
-  defp minutes_remaining(%{end_time: end_time}) do
-    diff = DateTime.diff(end_time, DateTime.utc_now(), :second)
-    max(div(diff, 60), 0)
-  end
-
-  defp minutes_until(%{entry: %{planned_at: start}}) do
-    diff = DateTime.diff(start, DateTime.utc_now(), :second)
-    max(div(diff, 60), 0)
-  end
-
-  defp format_hhmm(minutes) when is_integer(minutes) and minutes >= 0 do
-    h = div(minutes, 60)
-    m = rem(minutes, 60)
-    :io_lib.format("~2..0B:~2..0B", [h, m]) |> IO.iodata_to_binary()
   end
 
   attr :flash, :map, required: true, doc: "the map of flash messages"

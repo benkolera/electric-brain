@@ -1,6 +1,8 @@
 defmodule ElectricbrainWeb.HomeLive do
   use ElectricbrainWeb, :live_view
 
+  import ElectricbrainWeb.AgendaHelpers
+
   alias Electricbrain.Habits.Completion
   alias Electricbrain.Todos.Todo
 
@@ -75,33 +77,6 @@ defmodule ElectricbrainWeb.HomeLive do
     Calendar.strftime(local, "%A, %d %b %Y")
   end
 
-  defp item_title(%{entry: %{habit: %{title: t}}}) when is_binary(t), do: t
-  defp item_title(%{entry: %{todo: %{title: t}}}) when is_binary(t), do: t
-  defp item_title(_), do: "Scheduled"
-
-  defp format_time_range(item, tz) do
-    tz = tz || "Etc/UTC"
-    start_local = DateTime.shift_zone!(item.entry.planned_at, tz)
-    end_local = DateTime.shift_zone!(item.end_time, tz)
-
-    if DateTime.to_date(start_local) == DateTime.to_date(end_local) do
-      "#{Calendar.strftime(start_local, "%H:%M")}–#{Calendar.strftime(end_local, "%H:%M")}"
-    else
-      "#{Calendar.strftime(start_local, "%a %H:%M")} – #{Calendar.strftime(end_local, "%a %H:%M")}"
-    end
-  end
-
-  defp format_hhmm(minutes) when is_integer(minutes) and minutes >= 0 do
-    h = div(minutes, 60)
-    m = rem(minutes, 60)
-    :io_lib.format("~2..0B:~2..0B", [h, m]) |> IO.iodata_to_binary()
-  end
-
-  defp minutes_remaining(%{end_time: end_time}) do
-    diff = DateTime.diff(end_time, DateTime.utc_now(), :second)
-    max(div(diff, 60), 0)
-  end
-
   attr :item, :map, required: true
   attr :kind, :atom, required: true
   attr :timezone, :string, default: nil
@@ -153,7 +128,11 @@ defmodule ElectricbrainWeb.HomeLive do
     ~H"""
     <%= cond do %>
       <% @ritual? -> %>
-        <.link navigate={~p"/habits?ritual=#{@habit.id}"} class="btn btn-xs btn-success" title="Open ritual">
+        <.link
+          navigate={~p"/habits?ritual=#{@habit.id}"}
+          class="btn btn-xs btn-success"
+          title="Open ritual"
+        >
           <.icon name="hero-list-bullet-micro" class="size-4" />
         </.link>
       <% @habit -> %>
@@ -173,7 +152,7 @@ defmodule ElectricbrainWeb.HomeLive do
           phx-value-id={@todo.id}
           class={[
             "btn btn-xs",
-            @todo.status == :done && "btn-ghost" || "btn-success"
+            (@todo.status == :done && "btn-ghost") || "btn-success"
           ]}
           title={if @todo.status == :done, do: "Unmark", else: "Mark done"}
         >
@@ -212,8 +191,7 @@ defmodule ElectricbrainWeb.HomeLive do
 
       <%= if @past == [] and @current == [] and @upcoming == [] do %>
         <div class="text-center py-12 text-neutral-content/60">
-          Nothing planned today.
-          <.link navigate={~p"/plan"} class="link link-primary">Plan your week</.link>.
+          Nothing planned today. <.link navigate={~p"/plan"} class="link link-primary">Plan your week</.link>.
         </div>
       <% else %>
         <ul class="space-y-2">
