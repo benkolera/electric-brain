@@ -80,13 +80,20 @@ defmodule Electricbrain.Habits.Streak do
   # ── internals ──
 
   defp bucket_completions_by_local_day(completions, timezone) when is_list(completions) do
+    # `completed_at` is nil for in-progress ritual completions (steps
+    # checked but not all yet). Skip them — they shouldn't count toward
+    # the streak until they finalize, and shift_zone!(nil, _) crashes.
     Enum.reduce(completions, %{}, fn completion, acc ->
-      date =
-        completion.completed_at
-        |> DateTime.shift_zone!(timezone)
-        |> DateTime.to_date()
+      if completion.completed_at do
+        date =
+          completion.completed_at
+          |> DateTime.shift_zone!(timezone)
+          |> DateTime.to_date()
 
-      Map.update(acc, date, 1, &(&1 + 1))
+        Map.update(acc, date, 1, &(&1 + 1))
+      else
+        acc
+      end
     end)
   end
 
