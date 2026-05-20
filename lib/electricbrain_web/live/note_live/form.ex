@@ -68,7 +68,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
+    <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
       <.link navigate={~p"/notes"} class="btn btn-sm btn-ghost">
         <.icon name="hero-arrow-left-micro" class="size-4" /> Back
       </.link>

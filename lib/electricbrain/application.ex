@@ -12,9 +12,8 @@ defmodule Electricbrain.Application do
       Electricbrain.Repo,
       {DNSCluster, query: Application.get_env(:electricbrain, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Electricbrain.PubSub},
-      # Start a worker by calling: Electricbrain.Worker.start_link(arg)
-      # {Electricbrain.Worker, arg},
-      # Start to serve requests, typically the last entry
+      {Registry, keys: :unique, name: Electricbrain.Agenda.Registry},
+      {DynamicSupervisor, strategy: :one_for_one, name: Electricbrain.Agenda.Supervisor},
       ElectricbrainWeb.Endpoint,
       {AshAuthentication.Supervisor, [otp_app: :electricbrain]}
     ]

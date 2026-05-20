@@ -101,7 +101,7 @@ defmodule ElectricbrainWeb.TodoLive.Schedule do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
+    <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
       <div>
         <.link navigate={~p"/todos"} class="btn btn-sm btn-ghost">
           <.icon name="hero-arrow-left-micro" class="size-4" /> Back to todos

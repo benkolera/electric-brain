@@ -8,6 +8,8 @@ defmodule ElectricbrainWeb.HabitLive.IndexTest do
   alias Electricbrain.Categories.Category
   alias Electricbrain.Habits.Completion
   alias Electricbrain.Habits.Habit
+  alias Electricbrain.Habits.RitualStep
+  alias Electricbrain.Habits.StepCheck
 
   setup %{conn: conn} do
     user = create_user!()
@@ -29,7 +31,8 @@ defmodule ElectricbrainWeb.HabitLive.IndexTest do
       |> Ash.Query.filter(name == "Health")
       |> Ash.read_one!(actor: user)
 
-    # Open dropdown via filter then select Health
+    view |> element("button[phx-click=open_create]") |> render_click()
+
     view
     |> element("input[phx-keyup=filter_categories]")
     |> render_keyup(%{"value" => "Health"})
@@ -41,7 +44,12 @@ defmodule ElectricbrainWeb.HabitLive.IndexTest do
     html =
       view
       |> form("#habit-form", %{
-        "form" => %{"title" => "Exercise", "min_count" => "3", "period" => "week"}
+        "form" => %{
+          "title" => "Exercise",
+          "min_count" => "3",
+          "period" => "week",
+          "fixed_schedule" => "false"
+        }
       })
       |> render_submit()
 
@@ -92,6 +100,79 @@ defmodule ElectricbrainWeb.HabitLive.IndexTest do
     assert html =~ "No habits yet"
     assert Ash.read!(Habit, actor: user) == []
     assert Ash.read!(Completion, actor: user) == []
+  end
+
+  test "ritual habit: mark_done opens modal and ticks persist across reload", %{
+    conn: conn,
+    user: user
+  } do
+    habit = create_habit!(user, min_count: 1, period: :week)
+
+    step =
+      RitualStep
+      |> Ash.Changeset.for_create(
+        :create,
+        %{habit_id: habit.id, title: "brush teeth"},
+        actor: user
+      )
+      |> Ash.create!()
+
+    {:ok, view, _html} = live(conn, ~p"/habits")
+
+    html =
+      view
+      |> element(~s|button[phx-click=mark_done][phx-value-id="#{habit.id}"]|)
+      |> render_click()
+
+    assert html =~ "brush teeth"
+    assert [_] = Ash.read!(Completion, actor: user)
+
+    html =
+      view
+      |> element(~s|button[phx-click=toggle_step][phx-value-step_id="#{step.id}"]|)
+      |> render_click()
+
+    assert [_check] = Ash.read!(StepCheck, actor: user)
+    refute html =~ "brush teeth"
+
+    [completion] = Ash.read!(Completion, actor: user)
+    refute is_nil(completion.completed_at)
+    assert html =~ "1 / 1"
+  end
+
+  test "ritual habit: partial tick leaves completion in progress", %{conn: conn, user: user} do
+    habit = create_habit!(user, min_count: 1, period: :week)
+
+    step_a =
+      RitualStep
+      |> Ash.Changeset.for_create(
+        :create,
+        %{habit_id: habit.id, title: "screens off"},
+        actor: user
+      )
+      |> Ash.create!()
+
+    RitualStep
+    |> Ash.Changeset.for_create(
+      :create,
+      %{habit_id: habit.id, title: "brush teeth"},
+      actor: user
+    )
+    |> Ash.create!()
+
+    {:ok, view, _html} = live(conn, ~p"/habits")
+
+    view
+    |> element(~s|button[phx-click=mark_done][phx-value-id="#{habit.id}"]|)
+    |> render_click()
+
+    view
+    |> element(~s|button[phx-click=toggle_step][phx-value-step_id="#{step_a.id}"]|)
+    |> render_click()
+
+    [completion] = Ash.read!(Completion, actor: user)
+    assert is_nil(completion.completed_at)
+    assert [_check] = Ash.read!(StepCheck, actor: user)
   end
 
   defp create_habit!(user, opts \\ []) do

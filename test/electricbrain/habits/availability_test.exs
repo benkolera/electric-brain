@@ -41,20 +41,23 @@ defmodule Electricbrain.Habits.AvailabilityTest do
     assert availability.user_id == user.id
   end
 
-  test "rejects end_time <= start_time", %{user: user, habit: habit} do
-    assert {:error, _} =
+  test "accepts end_time < start_time as wrapping past midnight", %{user: user, habit: habit} do
+    assert {:ok, availability} =
              Availability
              |> Ash.Changeset.for_create(
                :create,
                %{
                  habit_id: habit.id,
                  day_of_week: 3,
-                 start_time: ~T[19:00:00],
-                 end_time: ~T[18:00:00]
+                 start_time: ~T[22:00:00],
+                 end_time: ~T[06:00:00]
                },
                actor: user
              )
              |> Ash.create()
+
+    assert availability.start_time == ~T[22:00:00]
+    assert availability.end_time == ~T[06:00:00]
   end
 
   test "destroying a habit cascade-deletes its availabilities", %{user: user, habit: habit} do

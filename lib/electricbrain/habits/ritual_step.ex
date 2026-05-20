@@ -1,4 +1,4 @@
-defmodule Electricbrain.Habits.Availability do
+defmodule Electricbrain.Habits.RitualStep do
   use Ash.Resource,
     otp_app: :electricbrain,
     domain: Electricbrain.Habits,
@@ -6,7 +6,7 @@ defmodule Electricbrain.Habits.Availability do
     authorizers: [Ash.Policy.Authorizer]
 
   postgres do
-    table "habit_availabilities"
+    table "habit_ritual_steps"
     repo Electricbrain.Repo
 
     references do
@@ -18,8 +18,12 @@ defmodule Electricbrain.Habits.Availability do
     defaults [:read, :destroy]
 
     create :create do
-      accept [:habit_id, :day_of_week, :start_time, :end_time]
+      accept [:habit_id, :title]
       change relate_actor(:user)
+    end
+
+    update :update do
+      accept [:title]
     end
   end
 
@@ -28,7 +32,7 @@ defmodule Electricbrain.Habits.Availability do
       authorize_if actor_present()
     end
 
-    policy action_type([:read, :destroy]) do
+    policy action_type([:read, :update, :destroy]) do
       authorize_if relates_to_actor_via(:user)
     end
   end
@@ -42,18 +46,7 @@ defmodule Electricbrain.Habits.Availability do
   attributes do
     uuid_primary_key :id
 
-    # nil means "every day" — auto-prime expands into 1..7.
-    attribute :day_of_week, :integer do
-      public? true
-      constraints min: 1, max: 7
-    end
-
-    attribute :start_time, :time do
-      allow_nil? false
-      public? true
-    end
-
-    attribute :end_time, :time do
+    attribute :title, :string do
       allow_nil? false
       public? true
     end
@@ -70,18 +63,7 @@ defmodule Electricbrain.Habits.Availability do
       allow_nil? false
       public? true
     end
-  end
 
-  @doc """
-  Minutes between start_time and end_time. End <= start wraps past midnight, so
-  22:00 → 06:00 is 480 minutes.
-  """
-  def duration_minutes(%{start_time: start_time, end_time: end_time}) do
-    diff = Time.diff(end_time, start_time, :second)
-    div(if(diff <= 0, do: diff + 86_400, else: diff), 60)
+    has_many :step_checks, Electricbrain.Habits.StepCheck
   end
-
-  @doc "1 for a single-day window, 7 for an every-day (nil day_of_week) window."
-  def occurrences_per_week(%{day_of_week: nil}), do: 7
-  def occurrences_per_week(%{day_of_week: _}), do: 1
 end

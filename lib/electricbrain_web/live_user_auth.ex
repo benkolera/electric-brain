@@ -15,15 +15,15 @@ defmodule ElectricbrainWeb.LiveUserAuth do
 
   def on_mount(:live_user_optional, _params, _session, socket) do
     if socket.assigns[:current_user] do
-      {:cont, attach_timezone_hook(socket)}
+      {:cont, socket |> attach_timezone_hook() |> attach_agenda(socket.assigns.current_user)}
     else
-      {:cont, assign(socket, :current_user, nil)}
+      {:cont, socket |> assign(:current_user, nil) |> assign(:now_agenda, empty_agenda())}
     end
   end
 
   def on_mount(:live_user_required, _params, _session, socket) do
     if socket.assigns[:current_user] do
-      {:cont, attach_timezone_hook(socket)}
+      {:cont, socket |> attach_timezone_hook() |> attach_agenda(socket.assigns.current_user)}
     else
       {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/sign-in")}
     end
@@ -70,4 +70,32 @@ defmodule ElectricbrainWeb.LiveUserAuth do
   end
 
   defp handle_set_timezone(_event, _params, socket), do: {:cont, socket}
+
+  defp attach_agenda(socket, user) do
+    if Phoenix.LiveView.connected?(socket) do
+      snapshot =
+        try do
+          case Electricbrain.Agenda.subscribe(user.id) do
+            {:ok, snap} -> snap
+            _ -> empty_agenda()
+          end
+        rescue
+          _ -> empty_agenda()
+        end
+
+      socket
+      |> assign(:now_agenda, snapshot)
+      |> Phoenix.LiveView.attach_hook(:agenda_sync, :handle_info, &handle_agenda_info/2)
+    else
+      assign(socket, :now_agenda, empty_agenda())
+    end
+  end
+
+  defp handle_agenda_info({:agenda_changed, snapshot}, socket) do
+    {:halt, assign(socket, :now_agenda, snapshot)}
+  end
+
+  defp handle_agenda_info(_msg, socket), do: {:cont, socket}
+
+  defp empty_agenda, do: %{current: [], next: nil}
 end

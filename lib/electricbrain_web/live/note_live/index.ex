@@ -32,7 +32,7 @@ defmodule ElectricbrainWeb.NoteLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
+    <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
       <div class="flex items-center justify-between">
         <div>
           <h1 class="font-display text-3xl font-bold tracking-tight text-primary">Notes</h1>

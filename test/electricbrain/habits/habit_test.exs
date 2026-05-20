@@ -40,7 +40,7 @@ defmodule Electricbrain.Habits.HabitTest do
                Habit
                |> Ash.Changeset.for_create(
                  :create,
-                 %{title: "x", category_id: inbox.id, min_count: 0},
+                 %{title: "x", category_id: inbox.id, min_count: 0, period: :week},
                  actor: user
                )
                |> Ash.create()
@@ -77,7 +77,7 @@ defmodule Electricbrain.Habits.HabitTest do
                Habit
                |> Ash.Changeset.for_create(
                  :create,
-                 %{title: "x", category_id: inbox.id, period: :fortnight},
+                 %{title: "x", category_id: inbox.id, min_count: 1, period: :fortnight},
                  actor: user
                )
                |> Ash.create()
@@ -105,7 +105,9 @@ defmodule Electricbrain.Habits.HabitTest do
         :create,
         %{
           title: "Alice's habit",
-          category_id: Categories.inbox_for(alice).id
+          category_id: Categories.inbox_for(alice).id,
+          min_count: 1,
+          period: :week
         },
         actor: alice
       )

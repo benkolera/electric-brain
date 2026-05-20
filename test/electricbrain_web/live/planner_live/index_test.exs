@@ -58,7 +58,11 @@ defmodule ElectricbrainWeb.PlannerLive.IndexTest do
     assert entry.todo_id == todo.id
   end
 
-  test "scheduling a floating entry sets planned_at", %{conn: conn, user: user, todo: todo} do
+  test "arming a floating entry + clicking a slot sets planned_at", %{
+    conn: conn,
+    user: user,
+    todo: todo
+  } do
     entry =
       Entry
       |> Ash.Changeset.for_create(
@@ -70,15 +74,15 @@ defmodule ElectricbrainWeb.PlannerLive.IndexTest do
 
     {:ok, view, _html} = live(conn, ~p"/plan")
 
-    monday = today_monday(user)
-    dt_local = "#{Date.to_iso8601(monday)}T18:00"
-
     view
-    |> form("#schedule-form-#{entry.id}", %{
-      "entry_id" => entry.id,
-      "datetime" => dt_local
-    })
-    |> render_submit()
+    |> element(~s|button[phx-click=arm_floating][phx-value-id="#{entry.id}"]|)
+    |> render_click()
+
+    monday = today_monday(user)
+    {:ok, slot_local} = DateTime.new(monday, ~T[18:00:00], user.timezone)
+    iso = DateTime.to_iso8601(slot_local)
+
+    render_hook(view, "slot_clicked", %{"instant" => iso})
 
     assert %{planned_at: planned_at} = Ash.get!(Entry, entry.id, actor: user)
     refute is_nil(planned_at)

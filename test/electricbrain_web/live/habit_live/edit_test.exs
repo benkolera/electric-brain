@@ -1,4 +1,4 @@
-defmodule ElectricbrainWeb.HabitLive.ScheduleTest do
+defmodule ElectricbrainWeb.HabitLive.EditTest do
   use ElectricbrainWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
@@ -6,6 +6,7 @@ defmodule ElectricbrainWeb.HabitLive.ScheduleTest do
   alias Electricbrain.Categories
   alias Electricbrain.Habits.Availability
   alias Electricbrain.Habits.Habit
+  alias Electricbrain.Habits.RitualStep
 
   setup %{conn: conn} do
     user = create_user!()
@@ -21,18 +22,22 @@ defmodule ElectricbrainWeb.HabitLive.ScheduleTest do
       )
       |> Ash.create!()
 
-    {:ok, conn: log_in_user(conn, user), user: user, habit: habit}
+    {:ok, conn: log_in_user(conn, user), user: user, habit: habit, inbox: inbox}
   end
 
   test "saves duration and buffer fields", %{conn: conn, user: user, habit: habit} do
-    {:ok, view, _html} = live(conn, ~p"/habits/#{habit.id}/schedule")
+    {:ok, view, _html} = live(conn, ~p"/habits/#{habit.id}/edit")
 
     view
-    |> form("#timing-form", %{
+    |> form("#edit-form", %{
       "form" => %{
+        "title" => "Exercise",
+        "min_count" => "3",
+        "period" => "week",
         "duration_minutes" => "60",
         "buffer_before_minutes" => "15",
-        "buffer_after_minutes" => "10"
+        "buffer_after_minutes" => "10",
+        "fixed_schedule" => "false"
       }
     })
     |> render_submit()
@@ -44,7 +49,7 @@ defmodule ElectricbrainWeb.HabitLive.ScheduleTest do
   end
 
   test "adds an availability window", %{conn: conn, user: user, habit: habit} do
-    {:ok, view, _html} = live(conn, ~p"/habits/#{habit.id}/schedule")
+    {:ok, view, _html} = live(conn, ~p"/habits/#{habit.id}/edit")
 
     html =
       view
@@ -62,6 +67,39 @@ defmodule ElectricbrainWeb.HabitLive.ScheduleTest do
     assert [_a] = Ash.read!(Availability, actor: user)
   end
 
+  test "adds a ritual step", %{conn: conn, user: user, habit: habit} do
+    {:ok, view, _html} = live(conn, ~p"/habits/#{habit.id}/edit")
+
+    html =
+      view
+      |> form("#step-form", %{"form" => %{"title" => "brush teeth"}})
+      |> render_submit()
+
+    assert html =~ "brush teeth"
+    assert [_step] = Ash.read!(RitualStep, actor: user)
+  end
+
+  test "deletes a ritual step", %{conn: conn, user: user, habit: habit} do
+    step =
+      RitualStep
+      |> Ash.Changeset.for_create(
+        :create,
+        %{habit_id: habit.id, title: "screens off"},
+        actor: user
+      )
+      |> Ash.create!()
+
+    {:ok, view, _html} = live(conn, ~p"/habits/#{habit.id}/edit")
+
+    html =
+      view
+      |> element(~s|button[phx-click=delete_step][phx-value-id="#{step.id}"]|)
+      |> render_click()
+
+    assert html =~ "No steps"
+    assert Ash.read!(RitualStep, actor: user) == []
+  end
+
   test "deletes an availability window", %{conn: conn, user: user, habit: habit} do
     availability =
       Availability
@@ -77,7 +115,7 @@ defmodule ElectricbrainWeb.HabitLive.ScheduleTest do
       )
       |> Ash.create!()
 
-    {:ok, view, _html} = live(conn, ~p"/habits/#{habit.id}/schedule")
+    {:ok, view, _html} = live(conn, ~p"/habits/#{habit.id}/edit")
 
     html =
       view
