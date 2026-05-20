@@ -12,9 +12,9 @@
   "type": "commonjs",
   "dependencies": {
     "@fontsource/space-grotesk": "^5.2.10",
-    "@schedule-x/calendar": "^4.6.0",
-    "@schedule-x/drag-and-drop": "^3.7.3",
-    "@schedule-x/resize": "^3.7.3",
-    "@schedule-x/theme-default": "^4.6.0"
+    "@schedule-x/calendar": "~3.7.3",
+    "@schedule-x/drag-and-drop": "~3.7.3",
+    "@schedule-x/resize": "~3.7.3",
+    "@schedule-x/theme-default": "~3.7.3"
   }
 }
