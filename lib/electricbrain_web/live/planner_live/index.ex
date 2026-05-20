@@ -339,6 +339,19 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     entry.duration_minutes || (schedulable && schedulable.duration_minutes) || 60
   end
 
+  # Returns a 0-or-1 element list for the armed entry's habit, but only
+  # when it's a count-based habit (not a fixed_schedule time block) and
+  # actually exists. The list shape lets the template use `<%= for %>`
+  # for clean conditional rendering without nested cases.
+  defp armed_habit_for(nil, _entries), do: []
+
+  defp armed_habit_for(armed_id, entries) do
+    case Enum.find(entries, &(&1.id == armed_id)) do
+      %{habit: %{fixed_schedule: false} = habit} -> [habit]
+      _ -> []
+    end
+  end
+
   defp format_entry_time_range(entry, timezone) do
     start_local = DateTime.shift_zone!(entry.planned_at, timezone)
     end_local = DateTime.add(start_local, entry_duration_minutes(entry) * 60, :second)
@@ -677,6 +690,19 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
                 <p class="text-xs text-accent mt-1">
                   Click a calendar slot to place this item. Click it again to cancel.
                 </p>
+                <%= for habit <- armed_habit_for(@armed_id, @floating) do %>
+                  <%= if habit.identity_statement do %>
+                    <p class="text-xs text-neutral-content/70 mt-1 italic">
+                      Doing this means you are: {habit.identity_statement}
+                    </p>
+                  <% end %>
+                  <%= if habit.minimum_viable_action do %>
+                    <p class="text-xs text-neutral-content/70 mt-1">
+                      <span class="font-medium text-accent">Two-minute fallback:</span>
+                      {habit.minimum_viable_action}
+                    </p>
+                  <% end %>
+                <% end %>
               <% end %>
 
               <ul class="space-y-1.5 mt-2">

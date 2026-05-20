@@ -25,7 +25,10 @@ defmodule Electricbrain.Habits.Habit do
         :category_id,
         :duration_minutes,
         :buffer_before_minutes,
-        :buffer_after_minutes
+        :buffer_after_minutes,
+        :fixed_schedule,
+        :identity_statement,
+        :minimum_viable_action
       ]
 
       change relate_actor(:user)
@@ -39,7 +42,10 @@ defmodule Electricbrain.Habits.Habit do
         :category_id,
         :duration_minutes,
         :buffer_before_minutes,
-        :buffer_after_minutes
+        :buffer_after_minutes,
+        :fixed_schedule,
+        :identity_statement,
+        :minimum_viable_action
       ]
 
       require_atomic? false
@@ -56,6 +62,16 @@ defmodule Electricbrain.Habits.Habit do
     end
   end
 
+  validations do
+    validate present(:min_count),
+      where: [attribute_equals(:fixed_schedule, false)],
+      message: "is required for count-based habits"
+
+    validate present(:period),
+      where: [attribute_equals(:fixed_schedule, false)],
+      message: "is required for count-based habits"
+  end
+
   attributes do
     uuid_primary_key :id
 
@@ -64,16 +80,13 @@ defmodule Electricbrain.Habits.Habit do
       public? true
     end
 
+    # Only meaningful for count-based (non-fixed) habits — see validations.
     attribute :min_count, :integer do
-      allow_nil? false
-      default 1
       public? true
       constraints min: 1
     end
 
     attribute :period, :atom do
-      allow_nil? false
-      default :week
       public? true
       constraints one_of: [:day, :week, :month]
     end
@@ -97,6 +110,27 @@ defmodule Electricbrain.Habits.Habit do
       constraints min: 0
     end
 
+    attribute :fixed_schedule, :boolean do
+      public? true
+      default false
+      allow_nil? false
+    end
+
+    # Atomic Habits ch. 2 — every completion is a vote for who you are.
+    # Surface this on the planner when the habit is armed and on the
+    # habit edit page; reinforces identity-based framing.
+    attribute :identity_statement, :string do
+      public? true
+    end
+
+    # Atomic Habits ch. 13 — the two-minute rule. A scaled-down version
+    # of the habit to fall back on when energy/time is low, so the
+    # streak doesn't break entirely. Shown as a hint, not a separate
+    # completion mode (for now).
+    attribute :minimum_viable_action, :string do
+      public? true
+    end
+
     timestamps()
   end
 
@@ -112,5 +146,6 @@ defmodule Electricbrain.Habits.Habit do
 
     has_many :completions, Electricbrain.Habits.Completion
     has_many :availabilities, Electricbrain.Habits.Availability
+    has_many :ritual_steps, Electricbrain.Habits.RitualStep
   end
 end
