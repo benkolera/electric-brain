@@ -65,6 +65,11 @@ defmodule ElectricbrainWeb.Layouts do
                 </.link>
               </li>
               <li>
+                <.link navigate={~p"/time-blocks"} class="font-medium">
+                  <.icon name="hero-clock-micro" class="size-4" /> Time blocks
+                </.link>
+              </li>
+              <li>
                 <details>
                   <summary class="font-medium text-neutral-content/80">
                     {@current_user.email}

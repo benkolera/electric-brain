@@ -1,12 +1,12 @@
-defmodule Electricbrain.Habits.Habit do
+defmodule Electricbrain.TimeBlocks.TimeBlock do
   use Ash.Resource,
     otp_app: :electricbrain,
-    domain: Electricbrain.Habits,
+    domain: Electricbrain.TimeBlocks,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
   postgres do
-    table "habits"
+    table "time_blocks"
     repo Electricbrain.Repo
 
     references do
@@ -20,14 +20,12 @@ defmodule Electricbrain.Habits.Habit do
     create :create do
       accept [
         :title,
-        :min_count,
-        :period,
         :category_id,
         :duration_minutes,
         :buffer_before_minutes,
         :buffer_after_minutes,
-        :identity_statement,
-        :minimum_viable_action
+        :weekly_target_minutes,
+        :target_kind
       ]
 
       change relate_actor(:user)
@@ -36,14 +34,12 @@ defmodule Electricbrain.Habits.Habit do
     update :update do
       accept [
         :title,
-        :min_count,
-        :period,
         :category_id,
         :duration_minutes,
         :buffer_before_minutes,
         :buffer_after_minutes,
-        :identity_statement,
-        :minimum_viable_action
+        :weekly_target_minutes,
+        :target_kind
       ]
 
       require_atomic? false
@@ -60,28 +56,12 @@ defmodule Electricbrain.Habits.Habit do
     end
   end
 
-  validations do
-    validate present(:min_count), message: "is required"
-    validate present(:period), message: "is required"
-  end
-
   attributes do
     uuid_primary_key :id
 
     attribute :title, :string do
       allow_nil? false
       public? true
-    end
-
-    attribute :min_count, :integer do
-      public? true
-      allow_nil? false
-      constraints min: 1
-    end
-
-    attribute :period, :atom do
-      public? true
-      constraints one_of: [:day, :week, :month]
     end
 
     attribute :duration_minutes, :integer do
@@ -103,19 +83,17 @@ defmodule Electricbrain.Habits.Habit do
       constraints min: 0
     end
 
-    # Atomic Habits ch. 2 — every completion is a vote for who you are.
-    # Surface this on the planner when the habit is armed and on the
-    # habit edit page; reinforces identity-based framing.
-    attribute :identity_statement, :string do
+    # Optional weekly target — interpreted via `target_kind`. nil
+    # means no tracking; the planner just shows the block without a
+    # drift indicator.
+    attribute :weekly_target_minutes, :integer do
       public? true
+      constraints min: 0
     end
 
-    # Atomic Habits ch. 13 — the two-minute rule. A scaled-down version
-    # of the habit to fall back on when energy/time is low, so the
-    # streak doesn't break entirely. Shown as a hint, not a separate
-    # completion mode (for now).
-    attribute :minimum_viable_action, :string do
+    attribute :target_kind, :atom do
       public? true
+      constraints one_of: [:at_least, :at_most]
     end
 
     timestamps()
@@ -131,8 +109,6 @@ defmodule Electricbrain.Habits.Habit do
       public? true
     end
 
-    has_many :completions, Electricbrain.Habits.Completion
-    has_many :availabilities, Electricbrain.Habits.Availability
-    has_many :ritual_steps, Electricbrain.Habits.RitualStep
+    has_many :availabilities, Electricbrain.TimeBlocks.Availability
   end
 end

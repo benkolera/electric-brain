@@ -1,12 +1,10 @@
 defmodule ElectricbrainWeb.HabitLive.FormFields do
   @moduledoc """
-  Shared Habit form fields used by the create modal on the index page and the
-  edit page. Conditionally hides count fields (min_count / period /
-  duration_minutes) when the habit is in fixed-schedule mode — those fields
-  don't apply because the entry length comes from the availability window.
+  Shared Habit form fields used by the create modal on the index page and
+  the edit page. Habits are always count-based now — fixed-schedule time
+  blocks are their own resource (`Electricbrain.TimeBlocks.TimeBlock`).
   """
   use Phoenix.Component
-  import ElectricbrainWeb.CoreComponents, only: [icon: 1]
   alias ElectricbrainWeb.CategoryPicker
 
   attr :form, :map, required: true
@@ -47,25 +45,7 @@ defmodule ElectricbrainWeb.HabitLive.FormFields do
         />
       </div>
 
-      <div class="sm:col-span-2">
-        <label class="cursor-pointer label gap-2 px-3 py-2 border border-base-300 rounded-lg bg-base-100 inline-flex">
-          <input type="hidden" name={@form[:fixed_schedule].name} value="false" />
-          <input
-            type="checkbox"
-            name={@form[:fixed_schedule].name}
-            value="true"
-            checked={truthy?(@form[:fixed_schedule].value)}
-            class="checkbox checkbox-sm checkbox-primary"
-          />
-          <span class="label-text text-xs">
-            <.icon name="hero-bolt-micro" class="size-3 inline" />
-            Fixed schedule — auto-place once per availability window
-          </span>
-        </label>
-      </div>
-
-      <%= unless truthy?(@form[:fixed_schedule].value) do %>
-        <div>
+      <div>
           <label class="label">
             <span class="label-text text-xs">Min count</span>
           </label>
@@ -142,7 +122,6 @@ defmodule ElectricbrainWeb.HabitLive.FormFields do
             autocomplete="off"
           />
         </div>
-      <% end %>
 
       <div>
         <label class="label">
@@ -177,7 +156,4 @@ defmodule ElectricbrainWeb.HabitLive.FormFields do
     """
   end
 
-  defp truthy?(true), do: true
-  defp truthy?("true"), do: true
-  defp truthy?(_), do: false
 end

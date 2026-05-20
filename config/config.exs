@@ -56,6 +56,7 @@ config :electricbrain,
     Electricbrain.Categories,
     Electricbrain.Todos,
     Electricbrain.Habits,
+    Electricbrain.TimeBlocks,
     Electricbrain.Planner,
     Electricbrain.Notes,
     Electricbrain.Accounts

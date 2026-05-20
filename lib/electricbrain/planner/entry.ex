@@ -12,13 +12,15 @@ defmodule Electricbrain.Planner.Entry do
     references do
       reference :todo, on_delete: :delete
       reference :habit, on_delete: :delete
+      reference :time_block, on_delete: :delete
     end
 
     check_constraints do
       check_constraint :todo_id,
         name: "plan_entries_exactly_one_target",
-        check: "(todo_id IS NOT NULL)::int + (habit_id IS NOT NULL)::int = 1",
-        message: "must reference exactly one of a todo or a habit"
+        check:
+          "(todo_id IS NOT NULL)::int + (habit_id IS NOT NULL)::int + (time_block_id IS NOT NULL)::int = 1",
+        message: "must reference exactly one of a todo, habit, or time block"
     end
   end
 
@@ -26,12 +28,20 @@ defmodule Electricbrain.Planner.Entry do
     defaults [:read, :destroy]
 
     create :create do
-      accept [:week_start, :planned_at, :todo_id, :habit_id]
+      accept [
+        :week_start,
+        :planned_at,
+        :duration_minutes,
+        :todo_id,
+        :habit_id,
+        :time_block_id
+      ]
+
       change relate_actor(:user)
     end
 
     update :schedule do
-      accept [:planned_at]
+      accept [:planned_at, :duration_minutes]
       require_atomic? false
     end
 
@@ -67,6 +77,10 @@ defmodule Electricbrain.Planner.Entry do
     validate {Electricbrain.Validations.OwnedParent,
               parent: Electricbrain.Habits.Habit, field: :habit_id},
              on: [:create]
+
+    validate {Electricbrain.Validations.OwnedParent,
+              parent: Electricbrain.TimeBlocks.TimeBlock, field: :time_block_id},
+             on: [:create]
   end
 
   attributes do
@@ -79,6 +93,14 @@ defmodule Electricbrain.Planner.Entry do
 
     attribute :planned_at, :utc_datetime_usec do
       public? true
+    end
+
+    # Per-entry override. Nil falls back to the schedulable's duration_minutes.
+    # Set when the entry's length differs from the schedulable's default — e.g.
+    # auto-primed fixed-schedule habits snapshot their availability window length.
+    attribute :duration_minutes, :integer do
+      public? true
+      constraints min: 0
     end
 
     # Google Calendar event id, stored after a successful sync. Used to
@@ -101,6 +123,11 @@ defmodule Electricbrain.Planner.Entry do
     end
 
     belongs_to :habit, Electricbrain.Habits.Habit do
+      allow_nil? true
+      public? true
+    end
+
+    belongs_to :time_block, Electricbrain.TimeBlocks.TimeBlock do
       allow_nil? true
       public? true
     end

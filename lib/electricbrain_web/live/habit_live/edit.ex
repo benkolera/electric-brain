@@ -150,14 +150,7 @@ defmodule ElectricbrainWeb.HabitLive.Edit do
     :io_lib.format("~2..0B:~2..0B", [h, m]) |> IO.iodata_to_binary()
   end
 
-  defp weekly_total_minutes(%{fixed_schedule: true, availabilities: avails}) do
-    Enum.reduce(avails, 0, fn a, acc ->
-      acc + Availability.duration_minutes(a) * Availability.occurrences_per_week(a)
-    end)
-  end
-
   defp weekly_total_minutes(%{
-         fixed_schedule: false,
          min_count: min_count,
          period: period,
          duration_minutes: duration
@@ -226,50 +219,48 @@ defmodule ElectricbrainWeb.HabitLive.Edit do
         </div>
       </.form>
 
-      <%= unless @habit.fixed_schedule do %>
-        <div class="card bg-base-200 border border-base-300">
-          <div class="card-body">
-            <div class="flex items-baseline justify-between gap-3 flex-wrap">
-              <h2 class="card-title text-lg">Recent activity</h2>
-              <%= if Streak.at_risk?(@habit, timezone: @current_user.timezone || "Etc/UTC") do %>
-                <span class="badge badge-warning gap-1">
-                  <.icon name="hero-exclamation-triangle-micro" class="size-3" />
-                  Don't miss twice
-                </span>
-              <% end %>
-            </div>
-            <p class="text-sm text-neutral-content/60">
-              Last 8 weeks. Hover a square to see the count.
-            </p>
+      <div class="card bg-base-200 border border-base-300">
+        <div class="card-body">
+          <div class="flex items-baseline justify-between gap-3 flex-wrap">
+            <h2 class="card-title text-lg">Recent activity</h2>
+            <%= if Streak.at_risk?(@habit, timezone: @current_user.timezone || "Etc/UTC") do %>
+              <span class="badge badge-warning gap-1">
+                <.icon name="hero-exclamation-triangle-micro" class="size-3" />
+                Don't miss twice
+              </span>
+            <% end %>
+          </div>
+          <p class="text-sm text-neutral-content/60">
+            Last 8 weeks. Hover a square to see the count.
+          </p>
 
-            <div class="flex flex-wrap gap-0.5 mt-2">
-              <%= for cell <- Streak.for_habit(@habit, timezone: @current_user.timezone || "Etc/UTC") do %>
-                <div
-                  class={["size-3 rounded-sm", streak_cell_class(cell.status)]}
-                  title={"#{cell.date} — #{cell.count} #{if cell.count == 1, do: "completion", else: "completions"} (#{cell.status})"}
-                >
-                </div>
-              <% end %>
-            </div>
+          <div class="flex flex-wrap gap-0.5 mt-2">
+            <%= for cell <- Streak.for_habit(@habit, timezone: @current_user.timezone || "Etc/UTC") do %>
+              <div
+                class={["size-3 rounded-sm", streak_cell_class(cell.status)]}
+                title={"#{cell.date} — #{cell.count} #{if cell.count == 1, do: "completion", else: "completions"} (#{cell.status})"}
+              >
+              </div>
+            <% end %>
+          </div>
 
-            <div class="flex items-center gap-3 text-xs text-neutral-content/60 mt-2">
-              <span class="flex items-center gap-1">
-                <span class={["size-2.5 rounded-sm", streak_cell_class(:hit)]}></span> Hit
-              </span>
-              <span class="flex items-center gap-1">
-                <span class={["size-2.5 rounded-sm", streak_cell_class(:partial)]}></span> Partial
-              </span>
-              <span class="flex items-center gap-1">
-                <span class={["size-2.5 rounded-sm", streak_cell_class(:miss)]}></span> Miss
-              </span>
-              <span class="flex items-center gap-1">
-                <span class={["size-2.5 rounded-sm", streak_cell_class(:in_progress)]}></span>
-                In progress
-              </span>
-            </div>
+          <div class="flex items-center gap-3 text-xs text-neutral-content/60 mt-2">
+            <span class="flex items-center gap-1">
+              <span class={["size-2.5 rounded-sm", streak_cell_class(:hit)]}></span> Hit
+            </span>
+            <span class="flex items-center gap-1">
+              <span class={["size-2.5 rounded-sm", streak_cell_class(:partial)]}></span> Partial
+            </span>
+            <span class="flex items-center gap-1">
+              <span class={["size-2.5 rounded-sm", streak_cell_class(:miss)]}></span> Miss
+            </span>
+            <span class="flex items-center gap-1">
+              <span class={["size-2.5 rounded-sm", streak_cell_class(:in_progress)]}></span>
+              In progress
+            </span>
           </div>
         </div>
-      <% end %>
+      </div>
 
       <div class="card bg-base-200 border border-base-300">
         <div class="card-body">
@@ -283,11 +274,7 @@ defmodule ElectricbrainWeb.HabitLive.Edit do
             <% end %>
           </div>
           <p class="text-sm text-neutral-content/60">
-            <%= if @habit.fixed_schedule do %>
-              Each window is auto-placed onto the planner once per week. End before start means it wraps past midnight.
-            <% else %>
-              When this habit may be scheduled. Empty means anytime.
-            <% end %>
+            When this habit may be scheduled. Empty means anytime.
           </p>
 
           <ul class="space-y-1 mt-2">

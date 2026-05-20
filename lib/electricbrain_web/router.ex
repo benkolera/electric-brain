@@ -46,6 +46,9 @@ defmodule ElectricbrainWeb.Router do
       live "/habits", HabitLive.Index, :index
       live "/habits/:id/edit", HabitLive.Edit, :show
 
+      live "/time-blocks", TimeBlockLive.Index, :index
+      live "/time-blocks/:id/edit", TimeBlockLive.Edit, :show
+
       live "/categories", CategoryLive.Index, :index
 
       live "/plan", PlannerLive.Index, :index

@@ -6,8 +6,9 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   alias Electricbrain.Categories
   alias Electricbrain.Categories.Colors
   alias Electricbrain.GoogleCalendar
-  alias Electricbrain.Habits.Availability
   alias Electricbrain.Habits.Habit
+  alias Electricbrain.TimeBlocks.Availability, as: TimeBlockAvailability
+  alias Electricbrain.TimeBlocks.TimeBlock
   alias Electricbrain.Planner.Entry
   alias Electricbrain.Todos.Todo
 
@@ -96,7 +97,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
 
   defp direct_minutes_per_category(entries) do
     Enum.reduce(entries, %{}, fn entry, acc ->
-      schedulable = entry.todo || entry.habit
+      schedulable = entry_schedulable(entry)
       category_id = schedulable && schedulable.category_id
 
       if category_id do
@@ -187,19 +188,18 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   defp read_week_entries(user, week_start) do
     Entry
     |> Ash.Query.filter(week_start == ^week_start)
-    |> Ash.Query.load([:todo, :habit])
+    |> Ash.Query.load([:todo, :habit, :time_block])
     |> Ash.read!(actor: user)
   end
 
   defp prime_week(user, week_start) do
-    fixed_habits =
-      Habit
-      |> Ash.Query.filter(fixed_schedule == true)
+    time_blocks =
+      TimeBlock
       |> Ash.Query.load(:availabilities)
       |> Ash.read!(actor: user)
 
-    for habit <- fixed_habits,
-        avail <- habit.availabilities,
+    for block <- time_blocks,
+        avail <- block.availabilities,
         dow <- availability_days(avail),
         planned_at = availability_to_utc(week_start, dow, avail.start_time, user.timezone),
         planned_at != nil do
@@ -209,8 +209,8 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
         %{
           week_start: week_start,
           planned_at: planned_at,
-          duration_minutes: Availability.duration_minutes(avail),
-          habit_id: habit.id
+          duration_minutes: TimeBlockAvailability.duration_minutes(avail),
+          time_block_id: block.id
         },
         actor: user
       )
@@ -248,7 +248,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
       start_utc = entry.planned_at
       duration = entry_duration_minutes(entry) * 60
       end_utc = DateTime.add(start_utc, duration, :second)
-      title = (entry.todo && entry.todo.title) || (entry.habit && entry.habit.title)
+      title = entry_title(entry)
       color_id = entry_color_id(entry, categories_by_id)
       calendar_id = Colors.name_for(color_id) |> String.downcase()
 
@@ -273,11 +273,13 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   end
 
   defp entry_color_id(entry, categories_by_id) do
-    category_id =
-      (entry.todo && entry.todo.category_id) ||
-        (entry.habit && entry.habit.category_id)
-
+    schedulable = entry_schedulable(entry)
+    category_id = schedulable && schedulable.category_id
     Colors.resolve_id(categories_by_id, category_id)
+  end
+
+  defp entry_schedulable(entry) do
+    entry.todo || entry.habit || entry.time_block
   end
 
   # Returns [{start_utc, end_utc}] split at midnight in the user's timezone so
@@ -313,6 +315,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
 
   defp kind_label(%{todo_id: tid}) when not is_nil(tid), do: "todo"
   defp kind_label(%{habit_id: hid}) when not is_nil(hid), do: "habit"
+  defp kind_label(%{time_block_id: tbid}) when not is_nil(tbid), do: "time_block"
 
   defp candidate_kind(%{kind: :todo}), do: :todo
   defp candidate_kind(%{kind: :habit}), do: :habit
@@ -324,30 +327,36 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     cond do
       entry.todo -> entry.todo.title
       entry.habit -> entry.habit.title
+      entry.time_block -> entry.time_block.title
       true -> "(untitled)"
     end
   end
 
-  defp fixed_schedule_entry?(%{habit: %{fixed_schedule: true}}), do: true
+  # Time-block entries hide from the floating-pool sidebar (they're
+  # auto-primed onto the calendar from availability windows; the user
+  # doesn't drag them around). Kept the function name so callers don't
+  # need updating; "fixed schedule" still names the concept correctly.
+  defp fixed_schedule_entry?(%{time_block_id: tbid}) when not is_nil(tbid), do: true
   defp fixed_schedule_entry?(_), do: false
 
   defp selected_entry(_scheduled, nil), do: nil
   defp selected_entry(scheduled, id), do: Enum.find(scheduled, &(&1.id == id))
 
   defp entry_duration_minutes(entry) do
-    schedulable = entry.todo || entry.habit
+    schedulable = entry_schedulable(entry)
     entry.duration_minutes || (schedulable && schedulable.duration_minutes) || 60
   end
 
-  # Returns a 0-or-1 element list for the armed entry's habit, but only
-  # when it's a count-based habit (not a fixed_schedule time block) and
-  # actually exists. The list shape lets the template use `<%= for %>`
-  # for clean conditional rendering without nested cases.
+  # Returns a 0-or-1 element list for the armed entry's habit. Time
+  # blocks live on a separate id (entry.time_block_id) so they never
+  # reach the floating pool; this only needs to handle todo vs habit
+  # entries. The list shape lets the template use `<%= for %>` for
+  # clean conditional rendering without nested cases.
   defp armed_habit_for(nil, _entries), do: []
 
   defp armed_habit_for(armed_id, entries) do
     case Enum.find(entries, &(&1.id == armed_id)) do
-      %{habit: %{fixed_schedule: false} = habit} -> [habit]
+      %{habit: %{} = habit} -> [habit]
       _ -> []
     end
   end

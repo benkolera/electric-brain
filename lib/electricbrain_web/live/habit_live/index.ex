@@ -360,14 +360,9 @@ defmodule ElectricbrainWeb.HabitLive.Index do
                     {CategoryPicker.breadcrumb(cat.path)}
                   </span>
                 <% end %>
-                <%= if !habit.fixed_schedule && habit.min_count && habit.period do %>
+                <%= if habit.min_count && habit.period do %>
                   <span class={progress_class(habit)}>
                     {habit.period_count} / {habit.min_count} {period_label(habit.period)}
-                  </span>
-                <% end %>
-                <%= if habit.fixed_schedule do %>
-                  <span class="badge badge-accent badge-outline badge-sm" title="Auto-placed on the planner from this habit's schedule">
-                    <.icon name="hero-bolt-micro" class="size-3" /> fixed
                   </span>
                 <% end %>
                 <%= if progress = ritual_progress(habit) do %>
