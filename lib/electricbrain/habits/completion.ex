@@ -66,5 +66,6 @@ defmodule Electricbrain.Habits.Completion do
     end
 
     has_many :step_checks, Electricbrain.Habits.StepCheck
+    has_many :measurements, Electricbrain.Metrics.Measurement
   end
 end

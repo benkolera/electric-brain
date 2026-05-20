@@ -134,5 +134,12 @@ defmodule Electricbrain.Habits.Habit do
     has_many :completions, Electricbrain.Habits.Completion
     has_many :availabilities, Electricbrain.Habits.Availability
     has_many :ritual_steps, Electricbrain.Habits.RitualStep
+    has_many :metric_links, Electricbrain.Metrics.HabitMetric
+
+    many_to_many :metrics, Electricbrain.Metrics.Metric do
+      through Electricbrain.Metrics.HabitMetric
+      source_attribute_on_join_resource :habit_id
+      destination_attribute_on_join_resource :metric_id
+    end
   end
 end

@@ -7,6 +7,7 @@ defmodule ElectricbrainWeb.HabitLive.Index do
   alias Electricbrain.Habits.Habit
   alias Electricbrain.Habits.StepCheck
   alias Electricbrain.Habits.Streak
+  alias Electricbrain.Metrics.Measurement
   alias ElectricbrainWeb.CategoryPicker
 
   import ElectricbrainWeb.HabitLive.FormFields
@@ -23,6 +24,8 @@ defmodule ElectricbrainWeb.HabitLive.Index do
      |> assign(:form, new_form(user))
      |> assign(:create_open, false)
      |> assign(:ritual_open_id, nil)
+     |> assign(:capture_completion_id, nil)
+     |> assign(:capture_habit_id, nil)
      |> assign(:habits, list_habits(user))}
   end
 
@@ -56,7 +59,7 @@ defmodule ElectricbrainWeb.HabitLive.Index do
   defp list_habits(user) do
     Habit
     |> Ash.Query.sort(inserted_at: :desc)
-    |> Ash.Query.load([:ritual_steps, completions: [:step_checks]])
+    |> Ash.Query.load([:ritual_steps, :metrics, completions: [:step_checks]])
     |> Ash.read!(actor: user)
     |> Enum.map(&decorate_habit(&1, user))
   end
@@ -158,11 +161,15 @@ defmodule ElectricbrainWeb.HabitLive.Index do
         {:noreply, socket}
 
       habit.ritual_steps == [] ->
-        Completion
-        |> Ash.Changeset.for_create(:create, %{habit_id: habit_id}, actor: user)
-        |> Ash.create!()
+        completion =
+          Completion
+          |> Ash.Changeset.for_create(:create, %{habit_id: habit_id}, actor: user)
+          |> Ash.create!()
 
-        {:noreply, assign(socket, habits: list_habits(user))}
+        {:noreply,
+         socket
+         |> assign(:habits, list_habits(user))
+         |> maybe_open_capture(habit, completion.id)}
 
       true ->
         ensure_in_progress(habit, user)
@@ -182,34 +189,83 @@ defmodule ElectricbrainWeb.HabitLive.Index do
     user = socket.assigns.current_user
     habit = find_habit(socket.assigns.habits, socket.assigns.ritual_open_id)
 
-    if habit && habit.in_progress_completion do
-      completion = habit.in_progress_completion
+    finalized_completion_id =
+      if habit && habit.in_progress_completion do
+        completion = habit.in_progress_completion
 
-      case Enum.find(completion.step_checks, &(&1.ritual_step_id == step_id)) do
-        nil ->
-          StepCheck
-          |> Ash.Changeset.for_create(
-            :create,
-            %{completion_id: completion.id, ritual_step_id: step_id},
-            actor: user
-          )
-          |> Ash.create!()
+        case Enum.find(completion.step_checks, &(&1.ritual_step_id == step_id)) do
+          nil ->
+            StepCheck
+            |> Ash.Changeset.for_create(
+              :create,
+              %{completion_id: completion.id, ritual_step_id: step_id},
+              actor: user
+            )
+            |> Ash.create!()
 
-        check ->
-          check |> Ash.destroy!(actor: user)
+          check ->
+            check |> Ash.destroy!(actor: user)
+        end
+
+        maybe_finalize(habit.id, user)
       end
-
-      maybe_finalize(habit.id, user)
-    end
 
     habits = list_habits(user)
     refreshed = find_habit(habits, socket.assigns.ritual_open_id)
     open_id = if refreshed && refreshed.in_progress_completion, do: refreshed.id, else: nil
 
+    socket =
+      if finalized_completion_id && refreshed do
+        maybe_open_capture(socket, refreshed, finalized_completion_id)
+      else
+        socket
+      end
+
     {:noreply,
      socket
      |> assign(:habits, habits)
      |> assign(:ritual_open_id, open_id)}
+  end
+
+  def handle_event("dismiss_capture", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:capture_completion_id, nil)
+     |> assign(:capture_habit_id, nil)}
+  end
+
+  def handle_event("submit_capture", %{"values" => values}, socket) do
+    user = socket.assigns.current_user
+    completion_id = socket.assigns.capture_completion_id
+
+    if completion_id do
+      Enum.each(values, fn {metric_id, value_str} ->
+        case parse_decimal(value_str) do
+          nil ->
+            :skip
+
+          decimal ->
+            Measurement
+            |> Ash.Changeset.for_create(
+              :create,
+              %{
+                metric_id: metric_id,
+                completion_id: completion_id,
+                value: decimal
+              },
+              actor: user
+            )
+            |> Ash.create!()
+        end
+      end)
+    end
+
+    {:noreply,
+     socket
+     |> assign(:capture_completion_id, nil)
+     |> assign(:capture_habit_id, nil)
+     |> assign(:habits, list_habits(user))
+     |> put_flash(:info, "Captured")}
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
@@ -220,6 +276,26 @@ defmodule ElectricbrainWeb.HabitLive.Index do
     |> Ash.destroy!(actor: user)
 
     {:noreply, assign(socket, habits: list_habits(user))}
+  end
+
+  defp parse_decimal(nil), do: nil
+  defp parse_decimal(""), do: nil
+
+  defp parse_decimal(str) when is_binary(str) do
+    case Decimal.parse(str) do
+      {decimal, ""} -> decimal
+      _ -> nil
+    end
+  end
+
+  defp maybe_open_capture(socket, habit, completion_id) do
+    if habit.metrics != [] do
+      socket
+      |> assign(:capture_completion_id, completion_id)
+      |> assign(:capture_habit_id, habit.id)
+    else
+      socket
+    end
   end
 
   defp ensure_in_progress(habit, user) do
@@ -251,6 +327,8 @@ defmodule ElectricbrainWeb.HabitLive.Index do
         completion
         |> Ash.Changeset.for_update(:finalize, %{}, actor: user)
         |> Ash.update!()
+
+        completion.id
       end
     end
   end
@@ -348,6 +426,43 @@ defmodule ElectricbrainWeb.HabitLive.Index do
             </div>
           </div>
           <div class="modal-backdrop" phx-click="close_ritual"></div>
+        </div>
+      <% end %>
+
+      <% capture_habit = @capture_habit_id && find_habit(@habits, @capture_habit_id) %>
+      <%= if capture_habit do %>
+        <div class="modal modal-open" phx-window-keydown="dismiss_capture" phx-key="escape">
+          <div class="modal-box max-w-md bg-base-200 border border-base-300">
+            <h2 class="font-bold text-lg mb-1">{capture_habit.title}</h2>
+            <p class="text-sm text-neutral-content/60 mb-4">
+              Record a value for each attached metric. You can skip and backfill later.
+            </p>
+            <form phx-submit="submit_capture" class="space-y-3">
+              <%= for metric <- capture_habit.metrics do %>
+                <div>
+                  <label class="label">
+                    <span class="label-text">{metric.name}</span>
+                    <span class="label-text-alt text-neutral-content/60">{metric.unit}</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    name={"values[#{metric.id}]"}
+                    class="input input-bordered w-full bg-base-100"
+                    autocomplete="off"
+                    required
+                  />
+                </div>
+              <% end %>
+              <div class="modal-action">
+                <button type="button" phx-click="dismiss_capture" class="btn btn-ghost">
+                  Skip
+                </button>
+                <button type="submit" class="btn btn-primary">Save</button>
+              </div>
+            </form>
+          </div>
+          <div class="modal-backdrop" phx-click="dismiss_capture"></div>
         </div>
       <% end %>
 

@@ -1,10 +1,14 @@
 defmodule ElectricbrainWeb.HabitLive.Edit do
   use ElectricbrainWeb, :live_view
 
+  require Ash.Query
+
   alias Electricbrain.Habits.Availability
   alias Electricbrain.Habits.Habit
   alias Electricbrain.Habits.RitualStep
   alias Electricbrain.Habits.Streak
+  alias Electricbrain.Metrics.HabitMetric
+  alias Electricbrain.Metrics.Metric
   alias ElectricbrainWeb.CategoryPicker
 
   import ElectricbrainWeb.HabitLive.FormFields
@@ -23,12 +27,22 @@ defmodule ElectricbrainWeb.HabitLive.Edit do
      |> assign(:picker_selected_id, habit.category_id)
      |> assign(:edit_form, edit_form(habit, user))
      |> assign(:availability_form, availability_form(user))
-     |> assign(:step_form, step_form(user))}
+     |> assign(:step_form, step_form(user))
+     |> assign(:available_metrics, list_metrics(user))}
   end
 
   defp load_habit(id, user) do
     Habit
-    |> Ash.get!(id, actor: user, load: [:availabilities, :ritual_steps, :completions])
+    |> Ash.get!(id,
+      actor: user,
+      load: [:availabilities, :ritual_steps, :completions, :metrics]
+    )
+  end
+
+  defp list_metrics(user) do
+    Metric
+    |> Ash.Query.sort(name: :asc)
+    |> Ash.read!(actor: user)
   end
 
   defp edit_form(habit, user) do
@@ -131,6 +145,35 @@ defmodule ElectricbrainWeb.HabitLive.Edit do
 
     habit = load_habit(socket.assigns.habit.id, user)
     {:noreply, assign(socket, habit: habit)}
+  end
+
+  def handle_event("attach_metric", %{"metric_id" => ""}, socket), do: {:noreply, socket}
+
+  def handle_event("attach_metric", %{"metric_id" => metric_id}, socket) do
+    user = socket.assigns.current_user
+    habit_id = socket.assigns.habit.id
+
+    HabitMetric
+    |> Ash.Changeset.for_create(
+      :create,
+      %{habit_id: habit_id, metric_id: metric_id},
+      actor: user
+    )
+    |> Ash.create!()
+
+    {:noreply, assign(socket, :habit, load_habit(habit_id, user))}
+  end
+
+  def handle_event("detach_metric", %{"metric_id" => metric_id}, socket) do
+    user = socket.assigns.current_user
+    habit_id = socket.assigns.habit.id
+
+    HabitMetric
+    |> Ash.Query.filter(habit_id == ^habit_id and metric_id == ^metric_id)
+    |> Ash.read!(actor: user)
+    |> Enum.each(&Ash.destroy!(&1, actor: user))
+
+    {:noreply, assign(socket, :habit, load_habit(habit_id, user))}
   end
 
   defp day_name(nil), do: "Every day"
@@ -404,6 +447,67 @@ defmodule ElectricbrainWeb.HabitLive.Edit do
               <.icon name="hero-plus-micro" class="size-4" /> Add step
             </button>
           </.form>
+        </div>
+      </div>
+
+      <div class="card bg-base-200 border border-base-300">
+        <div class="card-body">
+          <h2 class="card-title text-lg">Metrics captured on completion</h2>
+          <p class="text-sm text-neutral-content/60">
+            When this habit is marked done, you'll be prompted to enter a value
+            for each attached metric. Backfill or correct on the metric page.
+          </p>
+
+          <ul class="space-y-1 mt-2">
+            <%= for metric <- @habit.metrics do %>
+              <li class="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-base-300/40">
+                <.link navigate={~p"/metrics/#{metric.id}"} class="font-medium hover:underline">
+                  {metric.name}
+                </.link>
+                <span class="text-xs text-neutral-content/60">{metric.unit}</span>
+                <div class="flex-1"></div>
+                <button
+                  type="button"
+                  phx-click="detach_metric"
+                  phx-value-metric_id={metric.id}
+                  class="btn btn-xs btn-ghost text-error"
+                  title="Detach"
+                >
+                  <.icon name="hero-x-mark-micro" class="size-3.5" />
+                </button>
+              </li>
+            <% end %>
+            <%= if @habit.metrics == [] do %>
+              <li class="text-sm text-neutral-content/60 py-2">
+                No metrics attached. Pick one below to start capturing values.
+              </li>
+            <% end %>
+          </ul>
+
+          <% attached_ids = MapSet.new(@habit.metrics, & &1.id)
+          attachable = Enum.reject(@available_metrics, &MapSet.member?(attached_ids, &1.id)) %>
+          <%= if attachable != [] do %>
+            <form
+              phx-change="attach_metric"
+              class="flex gap-3 items-end mt-4 pt-4 border-t border-base-300"
+            >
+              <div class="flex-1">
+                <label class="label">
+                  <span class="label-text text-xs">Attach metric</span>
+                </label>
+                <select name="metric_id" class="select select-bordered bg-base-100 w-full">
+                  <option value="">Pick a metric…</option>
+                  <%= for m <- attachable do %>
+                    <option value={m.id}>{m.name} ({m.unit})</option>
+                  <% end %>
+                </select>
+              </div>
+            </form>
+          <% else %>
+            <p class="text-xs text-neutral-content/60 mt-2">
+              No more metrics to attach. <.link navigate={~p"/metrics"} class="link link-primary">Create one</.link>.
+            </p>
+          <% end %>
         </div>
       </div>
     </Layouts.app>

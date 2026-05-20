@@ -10,6 +10,9 @@ defmodule ElectricbrainWeb.HabitLive.IndexTest do
   alias Electricbrain.Habits.Habit
   alias Electricbrain.Habits.RitualStep
   alias Electricbrain.Habits.StepCheck
+  alias Electricbrain.Metrics.HabitMetric
+  alias Electricbrain.Metrics.Measurement
+  alias Electricbrain.Metrics.Metric
 
   setup %{conn: conn} do
     user = create_user!()
@@ -173,6 +176,73 @@ defmodule ElectricbrainWeb.HabitLive.IndexTest do
     [completion] = Ash.read!(Completion, actor: user)
     assert is_nil(completion.completed_at)
     assert [_check] = Ash.read!(StepCheck, actor: user)
+  end
+
+  test "mark_done with attached metric opens capture modal and saves the value",
+       %{conn: conn, user: user} do
+    habit = create_habit!(user, min_count: 1, period: :day)
+
+    {:ok, metric} =
+      Metric
+      |> Ash.Changeset.for_create(:create, %{name: "Weight", unit: "kg"}, actor: user)
+      |> Ash.create()
+
+    HabitMetric
+    |> Ash.Changeset.for_create(
+      :create,
+      %{habit_id: habit.id, metric_id: metric.id},
+      actor: user
+    )
+    |> Ash.create!()
+
+    {:ok, view, _html} = live(conn, ~p"/habits")
+
+    html =
+      view
+      |> element(~s|button[phx-click=mark_done][phx-value-id="#{habit.id}"]|)
+      |> render_click()
+
+    assert html =~ "Record a value for each attached metric"
+    assert [completion] = Ash.read!(Completion, actor: user)
+    refute is_nil(completion.completed_at)
+
+    view
+    |> element("form[phx-submit=submit_capture]")
+    |> render_submit(%{"values" => %{metric.id => "82.5"}})
+
+    assert [m] = Ash.read!(Measurement, actor: user)
+    assert m.completion_id == completion.id
+    assert m.metric_id == metric.id
+    assert Decimal.equal?(m.value, Decimal.new("82.5"))
+  end
+
+  test "dismiss_capture closes modal without creating measurements",
+       %{conn: conn, user: user} do
+    habit = create_habit!(user, min_count: 1, period: :day)
+
+    {:ok, metric} =
+      Metric
+      |> Ash.Changeset.for_create(:create, %{name: "Weight", unit: "kg"}, actor: user)
+      |> Ash.create()
+
+    HabitMetric
+    |> Ash.Changeset.for_create(
+      :create,
+      %{habit_id: habit.id, metric_id: metric.id},
+      actor: user
+    )
+    |> Ash.create!()
+
+    {:ok, view, _html} = live(conn, ~p"/habits")
+
+    view
+    |> element(~s|button[phx-click=mark_done][phx-value-id="#{habit.id}"]|)
+    |> render_click()
+
+    view |> element("button[phx-click=dismiss_capture]") |> render_click()
+
+    assert [_completion] = Ash.read!(Completion, actor: user)
+    assert Ash.read!(Measurement, actor: user) == []
   end
 
   defp create_habit!(user, opts \\ []) do
