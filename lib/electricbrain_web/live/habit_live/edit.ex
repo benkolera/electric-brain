@@ -225,8 +225,7 @@ defmodule ElectricbrainWeb.HabitLive.Edit do
             <h2 class="card-title text-lg">Recent activity</h2>
             <%= if Streak.at_risk?(@habit, timezone: @current_user.timezone || "Etc/UTC") do %>
               <span class="badge badge-warning gap-1">
-                <.icon name="hero-exclamation-triangle-micro" class="size-3" />
-                Don't miss twice
+                <.icon name="hero-exclamation-triangle-micro" class="size-3" /> Don't miss twice
               </span>
             <% end %>
           </div>
@@ -377,7 +376,9 @@ defmodule ElectricbrainWeb.HabitLive.Edit do
               </li>
             <% end %>
             <%= if @habit.ritual_steps == [] do %>
-              <li class="text-sm text-neutral-content/60 py-2">No steps — habit completes in one tap.</li>
+              <li class="text-sm text-neutral-content/60 py-2">
+                No steps — habit completes in one tap.
+              </li>
             <% end %>
           </ul>
 

@@ -34,7 +34,8 @@ defmodule Electricbrain.Calendar.Cleanup do
   the given user's specified week. `mode` is `:dry_run` (default) or
   `:delete`. Returns `{:ok, %{kept: n, orphans: [...], deleted: m}}`.
   """
-  def cleanup_week(user_email, week_start_iso, mode \\ :dry_run) when mode in [:dry_run, :delete] do
+  def cleanup_week(user_email, week_start_iso, mode \\ :dry_run)
+      when mode in [:dry_run, :delete] do
     with {:ok, user} <- fetch_user(user_email),
          {:ok, week_start} <- Date.from_iso8601(week_start_iso),
          {:ok, entries} <- fetch_week_entries(user, week_start),

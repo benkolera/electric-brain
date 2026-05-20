@@ -26,7 +26,8 @@ defmodule Electricbrain.Repo.Migrations.RitualSteps do
             name: "habit_step_checks_user_id_fkey",
             type: :uuid,
             prefix: "public"
-          ), null: false
+          ),
+          null: false
 
       add :completion_id,
           references(:habit_completions,
@@ -35,7 +36,8 @@ defmodule Electricbrain.Repo.Migrations.RitualSteps do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
 
       add :ritual_step_id, :uuid, null: false
     end
@@ -76,7 +78,8 @@ defmodule Electricbrain.Repo.Migrations.RitualSteps do
             name: "habit_ritual_steps_user_id_fkey",
             type: :uuid,
             prefix: "public"
-          ), null: false
+          ),
+          null: false
 
       add :habit_id,
           references(:habits,
@@ -85,7 +88,8 @@ defmodule Electricbrain.Repo.Migrations.RitualSteps do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
     end
 
     alter table(:habit_completions) do

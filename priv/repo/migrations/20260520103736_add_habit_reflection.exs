@@ -28,7 +28,8 @@ defmodule Electricbrain.Repo.Migrations.AddHabitReflection do
             name: "habit_reflections_user_id_fkey",
             type: :uuid,
             prefix: "public"
-          ), null: false
+          ),
+          null: false
 
       add :habit_id,
           references(:habits,
@@ -37,7 +38,8 @@ defmodule Electricbrain.Repo.Migrations.AddHabitReflection do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
     end
 
     create unique_index(:habit_reflections, [:habit_id, :week_start],

@@ -220,7 +220,6 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     :ok
   end
 
-
   # nil day_of_week means "every day" — expand into 1..7.
   defp availability_days(%{day_of_week: nil}), do: 1..7 |> Enum.to_list()
   defp availability_days(%{day_of_week: dow}), do: [dow]
@@ -255,15 +254,16 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
       entry
       |> event_slices(start_utc, end_utc, timezone)
       |> Enum.with_index(fn {s_utc, e_utc}, idx ->
-        base = %{
-          id: "#{entry.id}__chunk__#{idx}",
-          title: title || "(untitled)",
-          start: DateTime.to_iso8601(s_utc),
-          end: DateTime.to_iso8601(e_utc),
-          calendarId: calendar_id,
-          _customContent: %{}
-        }
-        |> Map.put(:_kind, kind_label(entry))
+        base =
+          %{
+            id: "#{entry.id}__chunk__#{idx}",
+            title: title || "(untitled)",
+            start: DateTime.to_iso8601(s_utc),
+            end: DateTime.to_iso8601(e_utc),
+            calendarId: calendar_id,
+            _customContent: %{}
+          }
+          |> Map.put(:_kind, kind_label(entry))
 
         if idx == 0,
           do: base,
@@ -500,33 +500,6 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     {:noreply, socket |> load_week() |> push_scheduled_events()}
   end
 
-  # Before destroying or unscheduling an entry, drop its Google Calendar
-  # event so we don't leave orphans (which then duplicate on the next
-  # sync, since the freshly-created entry has google_event_id=nil and
-  # the push code POSTs rather than PUTs). delete_event is idempotent —
-  # 404/410 are treated as success — so racing or already-deleted events
-  # don't error. Failures are logged but don't block the local destroy
-  # (Google can be cleaned up later via Calendar.Cleanup.delete_orphans_for_week).
-  defp delete_from_google_if_synced(user, entry) do
-    if entry.google_event_id && GoogleCalendar.connected?(user) do
-      case GoogleCalendar.delete_event(user, entry) do
-        :ok ->
-          :ok
-
-        {:error, reason} ->
-          require Logger
-
-          Logger.warning(
-            "Failed to delete Google event for entry #{entry.id}: #{inspect(reason)}"
-          )
-
-          :ok
-      end
-    else
-      :ok
-    end
-  end
-
   def handle_event("entry_rescheduled", %{"id" => id, "start" => start_iso} = params, socket) do
     user = socket.assigns.current_user
 
@@ -591,6 +564,33 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
        |> put_flash(if(failed == 0, do: :info, else: :error), flash_msg)}
     else
       {:noreply, put_flash(socket, :error, "Connect Google Calendar in Settings first")}
+    end
+  end
+
+  # Before destroying or unscheduling an entry, drop its Google Calendar
+  # event so we don't leave orphans (which then duplicate on the next
+  # sync, since the freshly-created entry has google_event_id=nil and
+  # the push code POSTs rather than PUTs). delete_event is idempotent —
+  # 404/410 are treated as success — so racing or already-deleted events
+  # don't error. Failures are logged but don't block the local destroy
+  # (Google can be cleaned up later via Calendar.Cleanup.delete_orphans_for_week).
+  defp delete_from_google_if_synced(user, entry) do
+    if entry.google_event_id && GoogleCalendar.connected?(user) do
+      case GoogleCalendar.delete_event(user, entry) do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          require Logger
+
+          Logger.warning(
+            "Failed to delete Google event for entry #{entry.id}: #{inspect(reason)}"
+          )
+
+          :ok
+      end
+    else
+      :ok
     end
   end
 

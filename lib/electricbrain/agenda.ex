@@ -204,8 +204,7 @@ defmodule Electricbrain.Agenda do
     start_local = DateTime.add(today_start_local, -24 * 60 * 60, :second)
     end_local = DateTime.add(today_start_local, 2 * 24 * 60 * 60, :second)
 
-    {DateTime.shift_zone!(start_local, "Etc/UTC"),
-     DateTime.shift_zone!(end_local, "Etc/UTC")}
+    {DateTime.shift_zone!(start_local, "Etc/UTC"), DateTime.shift_zone!(end_local, "Etc/UTC")}
   end
 
   defp schedule_next_wake(%{items: items}) do

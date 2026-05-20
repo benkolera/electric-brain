@@ -31,7 +31,8 @@ defmodule Electricbrain.Repo.Migrations.AddTimeBlocks do
             name: "time_blocks_user_id_fkey",
             type: :uuid,
             prefix: "public"
-          ), null: false
+          ),
+          null: false
 
       add :category_id,
           references(:categories,
@@ -40,7 +41,8 @@ defmodule Electricbrain.Repo.Migrations.AddTimeBlocks do
             type: :uuid,
             prefix: "public",
             on_delete: :restrict
-          ), null: false
+          ),
+          null: false
     end
 
     create table(:time_block_availabilities, primary_key: false) do
@@ -63,7 +65,8 @@ defmodule Electricbrain.Repo.Migrations.AddTimeBlocks do
             name: "time_block_availabilities_user_id_fkey",
             type: :uuid,
             prefix: "public"
-          ), null: false
+          ),
+          null: false
 
       add :time_block_id,
           references(:time_blocks,
@@ -72,7 +75,8 @@ defmodule Electricbrain.Repo.Migrations.AddTimeBlocks do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
     end
 
     alter table(:plan_entries) do

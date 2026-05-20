@@ -34,6 +34,7 @@ defmodule ElectricbrainWeb.HabitLive.Index do
     socket =
       if habit && habit.ritual_steps != [] do
         ensure_in_progress(habit, user)
+
         socket
         |> assign(:habits, list_habits(user))
         |> assign(:ritual_open_id, habit_id)
@@ -165,6 +166,7 @@ defmodule ElectricbrainWeb.HabitLive.Index do
 
       true ->
         ensure_in_progress(habit, user)
+
         {:noreply,
          socket
          |> assign(:habits, list_habits(user))
@@ -315,7 +317,9 @@ defmodule ElectricbrainWeb.HabitLive.Index do
             </p>
             <ul class="space-y-2">
               <%= for step <- ritual_habit.ritual_steps do %>
-                <% checked = ritual_habit.in_progress_completion && step_checked?(ritual_habit.in_progress_completion, step.id) %>
+                <% checked =
+                  ritual_habit.in_progress_completion &&
+                    step_checked?(ritual_habit.in_progress_completion, step.id) %>
                 <li class="flex items-center gap-3">
                   <button
                     type="button"
@@ -323,11 +327,18 @@ defmodule ElectricbrainWeb.HabitLive.Index do
                     phx-value-step_id={step.id}
                     class={[
                       "btn btn-sm flex-1 justify-start",
-                      checked && "btn-success" || "btn-outline"
+                      (checked && "btn-success") || "btn-outline"
                     ]}
                   >
-                    <.icon name={if checked, do: "hero-check-circle-micro", else: "hero-circle-stack-micro"} class="size-4" />
-                    <span class={if checked, do: "line-through opacity-70", else: ""}>{step.title}</span>
+                    <.icon
+                      name={
+                        if checked, do: "hero-check-circle-micro", else: "hero-circle-stack-micro"
+                      }
+                      class="size-4"
+                    />
+                    <span class={if checked, do: "line-through opacity-70", else: ""}>
+                      {step.title}
+                    </span>
                   </button>
                 </li>
               <% end %>
@@ -350,7 +361,12 @@ defmodule ElectricbrainWeb.HabitLive.Index do
               class="btn btn-circle btn-sm btn-success"
               title={if habit.ritual_steps == [], do: "Mark done", else: "Open ritual"}
             >
-              <.icon name={if habit.ritual_steps == [], do: "hero-check-micro", else: "hero-list-bullet-micro"} class="size-4" />
+              <.icon
+                name={
+                  if habit.ritual_steps == [], do: "hero-check-micro", else: "hero-list-bullet-micro"
+                }
+                class="size-4"
+              />
             </button>
             <div class="flex-1 min-w-0">
               <p class="font-medium truncate">{habit.title}</p>

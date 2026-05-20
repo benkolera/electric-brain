@@ -52,7 +52,8 @@ defmodule ElectricbrainWeb.PlannerLive.Review do
 
         %{
           habit: habit,
-          completions_this_week: count_completions_in_week(habit.completions, week_start, timezone),
+          completions_this_week:
+            count_completions_in_week(habit.completions, week_start, timezone),
           form: reflection_form(habit, week_start, this_week, user),
           last_week: last_week
         }
