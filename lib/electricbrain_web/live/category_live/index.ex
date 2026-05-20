@@ -4,6 +4,7 @@ defmodule ElectricbrainWeb.CategoryLive.Index do
   require Ash.Query
 
   alias Electricbrain.Categories.Category
+  alias Electricbrain.Categories.Colors
 
   @impl true
   def mount(_params, _session, socket) do
@@ -69,6 +70,34 @@ defmodule ElectricbrainWeb.CategoryLive.Index do
     end
   end
 
+  def handle_event("open_color_picker", %{"id" => id}, socket) do
+    {:noreply, assign(socket, :editing, {:color, id})}
+  end
+
+  def handle_event("set_color", %{"id" => id} = params, socket) do
+    user = socket.assigns.current_user
+
+    color_id =
+      case Map.get(params, "color_id") do
+        s when s in [nil, ""] -> nil
+        s -> String.to_integer(s)
+      end
+
+    case Category
+         |> Ash.get!(id, actor: user)
+         |> Ash.Changeset.for_update(:update, %{color_id: color_id}, actor: user)
+         |> Ash.update() do
+      {:ok, _category} ->
+        {:noreply,
+         socket
+         |> assign(:editing, nil)
+         |> assign_categories(user)}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Could not set color")}
+    end
+  end
+
   def handle_event("delete", %{"id" => id}, socket) do
     user = socket.assigns.current_user
 
@@ -91,6 +120,7 @@ defmodule ElectricbrainWeb.CategoryLive.Index do
 
     children_by_parent = Enum.group_by(categories, & &1.parent_id)
     roots = Map.get(children_by_parent, nil, [])
+    categories_by_id = Map.new(categories, &{&1.id, &1})
 
     neglect = Electricbrain.Neglect.scores_for_user(user)
     max_neglect = neglect |> Map.values() |> Enum.max(fn -> 0 end)
@@ -98,6 +128,8 @@ defmodule ElectricbrainWeb.CategoryLive.Index do
     socket
     |> assign(:roots, roots)
     |> assign(:children_by_parent, children_by_parent)
+    |> assign(:categories_by_id, categories_by_id)
+    |> assign(:palette, Colors.palette())
     |> assign(:neglect, neglect)
     |> assign(:max_neglect, max_neglect)
   end
@@ -128,7 +160,7 @@ defmodule ElectricbrainWeb.CategoryLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
+    <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
       <div class="flex items-center justify-between">
         <div>
           <h1 class="font-display text-3xl font-bold tracking-tight text-accent drop-shadow-[0_0_12px_var(--color-accent)]">
@@ -158,6 +190,8 @@ defmodule ElectricbrainWeb.CategoryLive.Index do
               <.tree_node
                 node={node}
                 children_by_parent={@children_by_parent}
+                categories_by_id={@categories_by_id}
+                palette={@palette}
                 editing={@editing}
                 neglect={@neglect}
                 max_neglect={@max_neglect}
@@ -178,18 +212,24 @@ defmodule ElectricbrainWeb.CategoryLive.Index do
 
   attr :node, :map, required: true
   attr :children_by_parent, :map, required: true
+  attr :categories_by_id, :map, required: true
+  attr :palette, :map, required: true
   attr :editing, :any, required: true
   attr :neglect, :map, required: true
   attr :max_neglect, :float, required: true
 
   defp tree_node(assigns) do
     pct = neglect_pct(assigns.neglect, assigns.max_neglect, assigns.node.id)
+    effective_color_id = Colors.resolve_id(assigns.categories_by_id, assigns.node.id)
 
     assigns =
       assigns
       |> assign(:children, Map.get(assigns.children_by_parent, assigns.node.id, []))
       |> assign(:neglect_pct, pct)
       |> assign(:neglect_bar_class, neglect_class(pct))
+      |> assign(:effective_color_id, effective_color_id)
+      |> assign(:effective_color_hex, Colors.hex_for(effective_color_id))
+      |> assign(:color_inherited?, is_nil(assigns.node.color_id))
 
     ~H"""
     <li>
@@ -238,6 +278,24 @@ defmodule ElectricbrainWeb.CategoryLive.Index do
             </div>
           </div>
 
+          <button
+            type="button"
+            phx-click="open_color_picker"
+            phx-value-id={@node.id}
+            class={[
+              "size-4 rounded-full border transition",
+              @color_inherited? && "border-dashed border-neutral-content/40",
+              !@color_inherited? && "border-neutral-content/60"
+            ]}
+            style={"background:#{@effective_color_hex}"}
+            title={
+              if @color_inherited?,
+                do: "Color: #{Colors.name_for(@effective_color_id)} (inherited)",
+                else: "Color: #{Colors.name_for(@effective_color_id)}"
+            }
+          >
+          </button>
+
           <div class="flex items-center gap-1">
             <button
               type="button"
@@ -262,6 +320,44 @@ defmodule ElectricbrainWeb.CategoryLive.Index do
         <% end %>
       </div>
 
+      <%= if @editing == {:color, @node.id} do %>
+        <div class="flex flex-wrap items-center gap-1.5 py-2 px-2 ml-3 mb-1 bg-base-300/30 rounded">
+          <button
+            type="button"
+            phx-click="set_color"
+            phx-value-id={@node.id}
+            phx-value-color_id=""
+            class={[
+              "size-5 rounded-full border-dashed border flex items-center justify-center bg-base-200",
+              @color_inherited? && "ring-2 ring-primary",
+              !@color_inherited? && "border-neutral-content/40"
+            ]}
+            title="Inherit from parent (or default)"
+          >
+            <.icon name="hero-x-mark-micro" class="size-3 text-neutral-content/60" />
+          </button>
+          <%= for {id, %{hex: hex, name: name}} <- Enum.sort(@palette) do %>
+            <button
+              type="button"
+              phx-click="set_color"
+              phx-value-id={@node.id}
+              phx-value-color_id={id}
+              class={[
+                "size-5 rounded-full border",
+                @node.color_id == id && "ring-2 ring-primary border-transparent",
+                @node.color_id != id && "border-neutral-content/30"
+              ]}
+              style={"background:#{hex}"}
+              title={name}
+            >
+            </button>
+          <% end %>
+          <button type="button" phx-click="cancel" class="ml-2 btn btn-xs btn-ghost">
+            Close
+          </button>
+        </div>
+      <% end %>
+
       <%= if @editing == {:add, @node.id} do %>
         <.add_form parent_id={@node.id} nested={true} />
       <% end %>
@@ -272,6 +368,8 @@ defmodule ElectricbrainWeb.CategoryLive.Index do
             <.tree_node
               node={child}
               children_by_parent={@children_by_parent}
+              categories_by_id={@categories_by_id}
+              palette={@palette}
               editing={@editing}
               neglect={@neglect}
               max_neglect={@max_neglect}
