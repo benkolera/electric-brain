@@ -156,7 +156,13 @@ defmodule Electricbrain.GoogleCalendar do
         {:error, :no_target}
 
       true ->
-        duration_minutes = schedulable.duration_minutes || 60
+        # Per-entry override beats the schedulable's default (see
+        # Planner.Entry.duration_minutes — fixed-schedule habits like
+        # Sleep snapshot their availability window length onto the
+        # entry, and the habit itself has nil duration_minutes).
+        duration_minutes =
+          entry.duration_minutes || schedulable.duration_minutes || 60
+
         start_dt = entry.planned_at
         end_dt = DateTime.add(start_dt, duration_minutes * 60, :second)
 
