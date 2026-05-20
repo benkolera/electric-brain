@@ -96,6 +96,12 @@ defmodule Electricbrain.MixProject do
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind electricbrain", "esbuild electricbrain"],
       "assets.deploy": [
+        # `compile` runs first so LiveView 1.1+ colocated hooks
+        # (`phoenix-colocated/electricbrain`) are generated before
+        # esbuild tries to import them. NPM deps (Schedule-X et al)
+        # are installed by the deploy environment (Dockerfile) since
+        # this alias has no opinion on the JS toolchain.
+        "compile",
         "tailwind electricbrain --minify",
         "esbuild electricbrain --minify",
         "phx.digest"
