@@ -59,6 +59,7 @@ config :electricbrain,
     Electricbrain.TimeBlocks,
     Electricbrain.Planner,
     Electricbrain.Notes,
+    Electricbrain.Metrics,
     Electricbrain.Accounts
   ]
 
