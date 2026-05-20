@@ -70,6 +70,12 @@ defmodule Electricbrain.Neglect do
     |> Enum.sum()
   end
 
+  # Fixed-schedule habits have nil period / min_count (per the
+  # 20260519080414_habit_count_fields_optional migration); their
+  # neglect is expressed through the planner's scheduled blocks
+  # rather than this period-and-count model.
+  defp habit_score(%{period: nil}, _timezone, _now), do: 0
+
   defp habit_score(habit, timezone, now) do
     start = Timezones.period_start(habit.period, timezone, now)
     count = Enum.count(habit.completions, &(DateTime.compare(&1.completed_at, start) != :lt))
