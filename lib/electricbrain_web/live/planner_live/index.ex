@@ -662,12 +662,15 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
               <.icon name="hero-cloud-arrow-up-micro" class="size-4" /> Sync to Google
             </button>
           <% end %>
+          <.link navigate={~p"/plan/review"} class="btn btn-sm btn-ghost">
+            <.icon name="hero-clipboard-document-check-micro" class="size-4" /> Review
+          </.link>
           <button
             type="button"
             phx-click="reset_week"
-            data-confirm="Wipe every entry from this week and re-prime from fixed-schedule habits?"
+            data-confirm="Wipe every entry from this week and re-prime from time blocks?"
             class="btn btn-sm btn-ghost text-error"
-            title="Delete all entries for this week and re-prime from fixed-schedule habits"
+            title="Delete all entries for this week and re-prime from time blocks"
           >
             <.icon name="hero-arrow-path-micro" class="size-4" /> Reset week
           </button>
