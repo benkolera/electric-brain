@@ -28,9 +28,10 @@ defmodule Electricbrain.GoogleCalendar do
 
   def push_event(user, entry, opts) do
     req = Keyword.get(opts, :req, default_req())
+    color_id = Keyword.get(opts, :color_id)
 
     with {:ok, user} <- ensure_fresh_token(user, req),
-         {:ok, body} <- event_body(entry) do
+         {:ok, body} <- event_body(entry, color_id) do
       url =
         case entry.google_event_id do
           nil -> "#{@calendar_base}/calendars/#{@primary_calendar_id}/events"
@@ -185,7 +186,7 @@ defmodule Electricbrain.GoogleCalendar do
     end
   end
 
-  defp event_body(entry) do
+  defp event_body(entry, color_id) do
     schedulable = entry.todo || entry.habit
 
     cond do
@@ -213,12 +214,20 @@ defmodule Electricbrain.GoogleCalendar do
             true -> "(untitled)"
           end
 
-        {:ok,
-         %{
-           "summary" => title,
-           "start" => %{"dateTime" => DateTime.to_iso8601(start_dt), "timeZone" => "UTC"},
-           "end" => %{"dateTime" => DateTime.to_iso8601(end_dt), "timeZone" => "UTC"}
-         }}
+        base = %{
+          "summary" => title,
+          "start" => %{"dateTime" => DateTime.to_iso8601(start_dt), "timeZone" => "UTC"},
+          "end" => %{"dateTime" => DateTime.to_iso8601(end_dt), "timeZone" => "UTC"}
+        }
+
+        # Google's colorId field expects a string; nil omits it entirely
+        # so Google falls back to the calendar's default color.
+        body =
+          if is_integer(color_id),
+            do: Map.put(base, "colorId", Integer.to_string(color_id)),
+            else: base
+
+        {:ok, body}
     end
   end
 

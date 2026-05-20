@@ -4,6 +4,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   require Ash.Query
 
   alias Electricbrain.Categories
+  alias Electricbrain.Categories.Colors
   alias Electricbrain.GoogleCalendar
   alias Electricbrain.Habits.Availability
   alias Electricbrain.Habits.Habit
@@ -198,12 +199,14 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     Date.add(date, -days_back)
   end
 
-  defp event_payload(entries, timezone) do
+  defp event_payload(entries, timezone, categories_by_id) do
     Enum.flat_map(entries, fn entry ->
       start_utc = entry.planned_at
       duration = entry_duration_minutes(entry) * 60
       end_utc = DateTime.add(start_utc, duration, :second)
       title = (entry.todo && entry.todo.title) || (entry.habit && entry.habit.title)
+      color_id = entry_color_id(entry, categories_by_id)
+      calendar_id = Colors.name_for(color_id) |> String.downcase()
 
       entry
       |> event_slices(start_utc, end_utc, timezone)
@@ -213,6 +216,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
           title: title || "(untitled)",
           start: DateTime.to_iso8601(s_utc),
           end: DateTime.to_iso8601(e_utc),
+          calendarId: calendar_id,
           _customContent: %{}
         }
         |> Map.put(:_kind, kind_label(entry))
@@ -222,6 +226,14 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
           else: Map.put(base, :_options, %{disableDND: true, disableResize: true})
       end)
     end)
+  end
+
+  defp entry_color_id(entry, categories_by_id) do
+    category_id =
+      (entry.todo && entry.todo.category_id) ||
+        (entry.habit && entry.habit.category_id)
+
+    Colors.resolve_id(categories_by_id, category_id)
   end
 
   # Returns [{start_utc, end_utc}] split at midnight in the user's timezone so
@@ -493,7 +505,12 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     user = socket.assigns.current_user
 
     if GoogleCalendar.connected?(user) do
-      {synced, failed} = sync_scheduled_to_google(user, socket.assigns.scheduled)
+      {synced, failed} =
+        sync_scheduled_to_google(
+          user,
+          socket.assigns.scheduled,
+          socket.assigns.categories_by_id
+        )
 
       flash_msg =
         cond do
@@ -511,9 +528,11 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     end
   end
 
-  defp sync_scheduled_to_google(user, scheduled) do
+  defp sync_scheduled_to_google(user, scheduled, categories_by_id) do
     Enum.reduce(scheduled, {0, 0}, fn entry, {synced, failed} ->
-      case GoogleCalendar.push_event(user, entry) do
+      color_id = entry_color_id(entry, categories_by_id)
+
+      case GoogleCalendar.push_event(user, entry, color_id: color_id) do
         {:ok, google_id} ->
           if entry.google_event_id != google_id do
             entry
@@ -536,7 +555,13 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   end
 
   defp push_scheduled_events(socket) do
-    payload = event_payload(socket.assigns.scheduled, socket.assigns.timezone)
+    payload =
+      event_payload(
+        socket.assigns.scheduled,
+        socket.assigns.timezone,
+        socket.assigns.categories_by_id
+      )
+
     push_event(socket, "planner:events", %{events: payload})
   end
 
@@ -789,7 +814,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
               phx-update="ignore"
               data-timezone={@timezone}
               data-week-start={Date.to_iso8601(@week_start)}
-              data-events={Jason.encode!(event_payload(@scheduled, @timezone))}
+              data-events={Jason.encode!(event_payload(@scheduled, @timezone, @categories_by_id))}
               class="bg-base-100 rounded-box"
             >
             </div>

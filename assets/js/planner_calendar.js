@@ -3,10 +3,41 @@
 import 'temporal-polyfill/global'
 import { createCalendar, createViewWeek } from '@schedule-x/calendar'
 import { createDragAndDropPlugin } from '@schedule-x/drag-and-drop'
+import { createResizePlugin } from '@schedule-x/resize'
 import '@schedule-x/theme-default/dist/index.css'
 
 const toZdt = (iso, timezone) =>
   Temporal.Instant.from(iso).toZonedDateTimeISO(timezone)
+
+// Multi-day entries are split into one event per local day; the synthetic id
+// looks like `<uuid>__chunk__<index>`. Server only knows the uuid.
+const stripChunkSuffix = (id) => String(id).split('__chunk__')[0]
+
+// Google Calendar's fixed 11-color event palette, mirrored on the server in
+// Electricbrain.Categories.Colors so both views render the same color.
+// Event payloads set `calendarId` to one of these names; Schedule-X looks
+// the calendar up in its registered `calendars` config to apply the color.
+const PALETTE = {
+  lavender:  '#7986cb',
+  sage:      '#33b679',
+  grape:     '#8e24aa',
+  flamingo:  '#e67c73',
+  banana:    '#f6c026',
+  tangerine: '#f5511d',
+  peacock:   '#039be5',
+  graphite:  '#616161',
+  blueberry: '#3f51b5',
+  basil:     '#0b8043',
+  tomato:    '#d60000'
+}
+
+const CALENDARS = Object.fromEntries(
+  Object.entries(PALETTE).map(([name, hex]) => [name, {
+    colorName: name,
+    lightColors: { main: hex, container: hex + '33', onContainer: '#000' },
+    darkColors:  { main: hex, container: hex + '66', onContainer: '#fff' }
+  }])
+)
 
 const PlannerCalendar = {
   mounted() {
@@ -20,24 +51,25 @@ const PlannerCalendar = {
         isDark: true,
         timezone: this.timezone,
         weekOptions: { gridHeight: 700 },
+        calendars: CALENDARS,
         events: this.readEvents(),
         callbacks: {
           onEventUpdate: (event) => {
             this.pushEvent('entry_rescheduled', {
-              id: event.id,
+              id: stripChunkSuffix(event.id),
               start: event.start.toString(),
               end: event.end.toString()
             })
           },
           onEventClick: (event) => {
-            this.pushEvent('entry_clicked', { id: event.id })
+            this.pushEvent('entry_clicked', { id: stripChunkSuffix(event.id) })
           },
           onClickDateTime: (zdt) => {
             this.pushEvent('slot_clicked', { instant: zdt.toInstant().toString() })
           }
         }
       },
-      [createDragAndDropPlugin(15)]
+      [createDragAndDropPlugin(15), createResizePlugin(15)]
     )
 
     this.calendar.render(this.el)

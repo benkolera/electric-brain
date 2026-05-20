@@ -23,7 +23,7 @@ defmodule Electricbrain.Categories.Category do
     end
 
     update :update do
-      accept [:name]
+      accept [:name, :color_id]
       require_atomic? false
     end
   end
@@ -51,6 +51,15 @@ defmodule Electricbrain.Categories.Category do
       default :standard
       public? true
       constraints one_of: [:standard, :inbox]
+    end
+
+    # Google Calendar's fixed 11-color palette (see
+    # Electricbrain.Categories.Colors for the id↔hex map). Nil means
+    # "inherit from parent"; root with nil falls back to the default.
+    attribute :color_id, :integer do
+      allow_nil? true
+      public? true
+      constraints min: 1, max: 11
     end
 
     timestamps()
