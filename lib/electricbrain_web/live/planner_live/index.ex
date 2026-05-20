@@ -619,7 +619,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
+    <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]} wide>
       <div class="flex items-center justify-between">
         <div>
           <h1 class="font-display text-3xl font-bold tracking-tight text-accent drop-shadow-[0_0_12px_var(--color-accent)]">
@@ -658,39 +658,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
         </div>
       </div>
 
-      <%= if @category_totals != [] do %>
-        <div class="space-y-1">
-          <div class="text-xs text-neutral-content/60 uppercase tracking-wider">
-            Planned this week
-          </div>
-          <ul class="text-sm">
-            <%= for total <- @category_totals do %>
-              <li
-                class="flex items-center gap-2 py-0.5"
-                style={"padding-left: #{total.depth * 1.25}rem"}
-              >
-                <span
-                  class="size-2.5 rounded-full border border-neutral-content/30 shrink-0"
-                  style={"background:#{total.color_hex}"}
-                >
-                </span>
-                <span class={[
-                  "truncate",
-                  total.depth == 0 && "font-medium",
-                  total.depth > 0 && "text-neutral-content/80"
-                ]}>
-                  {total.name}
-                </span>
-                <span class="text-neutral-content/60 tabular-nums">
-                  {format_minutes(total.minutes)}
-                </span>
-              </li>
-            <% end %>
-          </ul>
-        </div>
-      <% end %>
-
-      <div class="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-4">
+      <div class="grid grid-cols-1 lg:grid-cols-[20rem_1fr_20rem] gap-4">
         <aside class="space-y-3">
           <div class="card bg-base-200 border border-base-300">
             <div class="card-body p-4">
@@ -882,6 +850,45 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
             </div>
           </div>
         </div>
+
+        <aside class="space-y-3">
+          <div class="card bg-base-200 border border-base-300">
+            <div class="card-body p-4">
+              <h2 class="card-title text-base">Planned this week</h2>
+
+              <%= if @category_totals == [] do %>
+                <p class="text-sm text-neutral-content/60 mt-1">
+                  Nothing scheduled yet.
+                </p>
+              <% else %>
+                <ul class="text-sm mt-1">
+                  <%= for total <- @category_totals do %>
+                    <li
+                      class="flex items-center gap-2 py-0.5"
+                      style={"padding-left: #{total.depth * 1.25}rem"}
+                    >
+                      <span
+                        class="size-2.5 rounded-full border border-neutral-content/30 shrink-0"
+                        style={"background:#{total.color_hex}"}
+                      >
+                      </span>
+                      <span class={[
+                        "truncate flex-1",
+                        total.depth == 0 && "font-medium",
+                        total.depth > 0 && "text-neutral-content/80"
+                      ]}>
+                        {total.name}
+                      </span>
+                      <span class="text-neutral-content/60 tabular-nums shrink-0">
+                        {format_minutes(total.minutes)}
+                      </span>
+                    </li>
+                  <% end %>
+                </ul>
+              <% end %>
+            </div>
+          </div>
+        </aside>
       </div>
     </Layouts.app>
     """

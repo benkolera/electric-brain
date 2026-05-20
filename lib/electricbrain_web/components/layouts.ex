@@ -9,6 +9,12 @@ defmodule ElectricbrainWeb.Layouts do
 
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_user, :map, default: nil
+  attr :now_agenda, :map, default: %{current: [], next: nil}
+
+  attr :wide, :boolean,
+    default: false,
+    doc: "drop the page's max-width — for pages like the planner that benefit from a 3-column desktop layout"
+
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -89,8 +95,14 @@ defmodule ElectricbrainWeb.Layouts do
         </div>
       </header>
 
+      <.now_banner
+        :if={@current_user}
+        now_agenda={@now_agenda}
+        timezone={@current_user.timezone || "Etc/UTC"}
+      />
+
       <main class="flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <div class="mx-auto max-w-5xl space-y-6">
+        <div class={["mx-auto space-y-6", if(@wide, do: "max-w-none", else: "max-w-5xl")]}>
           {render_slot(@inner_block)}
         </div>
       </main>
@@ -98,6 +110,71 @@ defmodule ElectricbrainWeb.Layouts do
       <.flash_group flash={@flash} />
     </div>
     """
+  end
+
+  attr :now_agenda, :map, required: true
+  attr :timezone, :string, required: true
+
+  def now_banner(assigns) do
+    assigns =
+      assign(assigns,
+        items: assigns.now_agenda[:current] || [],
+        next: assigns.now_agenda[:next]
+      )
+
+    ~H"""
+    <div :if={@items != [] or @next} class="border-b border-base-300 bg-base-200/60">
+      <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-2 flex flex-col gap-1">
+        <div :for={item <- @items} class="flex items-center gap-3 text-sm">
+          <span class="inline-flex items-center gap-1 font-semibold text-accent">
+            <span class="size-2 rounded-full bg-accent animate-pulse"></span> Now
+          </span>
+          <span class="font-medium truncate">{item_title(item)}</span>
+          <span class="font-mono text-xs text-neutral-content/60">
+            {format_time_range(item, @timezone)}
+          </span>
+          <span class="badge badge-ghost badge-sm font-mono">
+            {format_hhmm(minutes_remaining(item))} left
+          </span>
+        </div>
+        <div :if={@items == [] and @next} class="flex items-center gap-3 text-sm">
+          <span class="text-neutral-content/60">Up next</span>
+          <span class="font-medium truncate">{item_title(@next)}</span>
+          <span class="font-mono text-xs text-neutral-content/60">
+            at {format_clock(@next.entry.planned_at, @timezone)} · in {format_hhmm(minutes_until(@next))}
+          </span>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp item_title(%{entry: %{habit: %{title: t}}}) when is_binary(t), do: t
+  defp item_title(%{entry: %{todo: %{title: t}}}) when is_binary(t), do: t
+  defp item_title(_), do: "Scheduled"
+
+  defp format_time_range(%{entry: %{planned_at: start}, end_time: finish}, tz) do
+    "#{format_clock(start, tz)}–#{format_clock(finish, tz)}"
+  end
+
+  defp format_clock(dt, tz) do
+    dt |> DateTime.shift_zone!(tz) |> Calendar.strftime("%H:%M")
+  end
+
+  defp minutes_remaining(%{end_time: end_time}) do
+    diff = DateTime.diff(end_time, DateTime.utc_now(), :second)
+    max(div(diff, 60), 0)
+  end
+
+  defp minutes_until(%{entry: %{planned_at: start}}) do
+    diff = DateTime.diff(start, DateTime.utc_now(), :second)
+    max(div(diff, 60), 0)
+  end
+
+  defp format_hhmm(minutes) when is_integer(minutes) and minutes >= 0 do
+    h = div(minutes, 60)
+    m = rem(minutes, 60)
+    :io_lib.format("~2..0B:~2..0B", [h, m]) |> IO.iodata_to_binary()
   end
 
   attr :flash, :map, required: true, doc: "the map of flash messages"
