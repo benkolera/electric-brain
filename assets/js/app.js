@@ -30,6 +30,7 @@ import {hooks as colocatedHooks} from "phoenix-colocated/electricbrain"
 import topbar from "../vendor/topbar"
 import DrawingHooks from "./drawing"
 import PlannerCalendar from "./planner_calendar"
+import MetricChart from "./metric_chart"
 
 const TimezoneDetect = {
   mounted() {
@@ -42,7 +43,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ...DrawingHooks, TimezoneDetect, PlannerCalendar},
+  hooks: {...colocatedHooks, ...DrawingHooks, TimezoneDetect, PlannerCalendar, MetricChart},
 })
 
 // Show progress bar on live navigation and form submits

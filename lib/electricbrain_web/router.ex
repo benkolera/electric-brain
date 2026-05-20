@@ -51,6 +51,9 @@ defmodule ElectricbrainWeb.Router do
 
       live "/categories", CategoryLive.Index, :index
 
+      live "/metrics", MetricLive.Index, :index
+      live "/metrics/:id", MetricLive.Show, :show
+
       live "/plan", PlannerLive.Index, :index
       live "/plan/review", PlannerLive.Review, :index
 

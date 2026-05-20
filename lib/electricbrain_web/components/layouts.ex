@@ -73,6 +73,11 @@ defmodule ElectricbrainWeb.Layouts do
                 </.link>
               </li>
               <li>
+                <.link navigate={~p"/metrics"} class="font-medium">
+                  <.icon name="hero-chart-bar-micro" class="size-4" /> Metrics
+                </.link>
+              </li>
+              <li>
                 <details>
                   <summary class="font-medium text-neutral-content/80">
                     {@current_user.email}
