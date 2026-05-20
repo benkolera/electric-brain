@@ -72,39 +72,79 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     |> assign(:selected_entry_id, selected_entry_id)
   end
 
+  # Flat list of `{node, depth, subtree_minutes}` for every category
+  # that has planned time (directly or via descendants). Roots first,
+  # children indented under their parent via :depth, alphabetical
+  # within each sibling group. Used by the planner header's
+  # "Planned this week" tree view.
   defp category_totals(entries, categories_by_id) do
-    entries
-    |> Enum.flat_map(fn entry ->
+    per_cat = direct_minutes_per_category(entries)
+
+    cats_by_parent =
+      categories_by_id
+      |> Map.values()
+      |> Enum.group_by(& &1.parent_id)
+      |> Enum.into(%{}, fn {parent_id, kids} ->
+        {parent_id, Enum.sort_by(kids, &String.downcase(&1.name))}
+      end)
+
+    roots = Map.get(cats_by_parent, nil, [])
+
+    flatten_totals(roots, cats_by_parent, per_cat, categories_by_id, 0, [])
+    |> Enum.reverse()
+  end
+
+  defp direct_minutes_per_category(entries) do
+    Enum.reduce(entries, %{}, fn entry, acc ->
       schedulable = entry.todo || entry.habit
       category_id = schedulable && schedulable.category_id
 
-      cond do
-        is_nil(category_id) ->
-          []
-
-        true ->
-          # Use the per-entry duration (which honors the override that
-          # fixed-schedule habits like Sleep snapshot from their
-          # availability window — their habit-level duration_minutes
-          # is nil so reading it directly would total 0).
-          duration = entry_duration_minutes(entry)
-          root_id = Categories.root_id(category_id, categories_by_id)
-          [{root_id, duration}]
+      if category_id do
+        mins = entry_duration_minutes(entry)
+        Map.update(acc, category_id, mins, &(&1 + mins))
+      else
+        acc
       end
     end)
-    |> Enum.reduce(%{}, fn {id, mins}, acc ->
-      Map.update(acc, id, mins, &(&1 + mins))
-    end)
-    |> Enum.map(fn {root_id, minutes} ->
-      root = Map.get(categories_by_id, root_id)
+  end
 
-      %{
-        root_id: root_id,
-        name: (root && root.name) || "(unknown)",
-        minutes: minutes
-      }
+  defp flatten_totals(nodes, cats_by_parent, per_cat, categories_by_id, depth, acc) do
+    Enum.reduce(nodes, acc, fn node, acc ->
+      subtree = subtree_minutes(node, cats_by_parent, per_cat)
+
+      if subtree == 0 do
+        acc
+      else
+        color_id = Colors.resolve_id(categories_by_id, node.id)
+
+        row = %{
+          id: node.id,
+          name: node.name,
+          minutes: subtree,
+          depth: depth,
+          color_hex: Colors.hex_for(color_id)
+        }
+
+        children = Map.get(cats_by_parent, node.id, [])
+
+        flatten_totals(
+          children,
+          cats_by_parent,
+          per_cat,
+          categories_by_id,
+          depth + 1,
+          [row | acc]
+        )
+      end
     end)
-    |> Enum.sort_by(& &1.name)
+  end
+
+  defp subtree_minutes(node, cats_by_parent, per_cat) do
+    self_mins = Map.get(per_cat, node.id, 0)
+    children = Map.get(cats_by_parent, node.id, [])
+
+    self_mins +
+      Enum.sum(Enum.map(children, &subtree_minutes(&1, cats_by_parent, per_cat)))
   end
 
   defp format_minutes(0), do: "0m"
@@ -619,16 +659,34 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
       </div>
 
       <%= if @category_totals != [] do %>
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-xs text-neutral-content/60 uppercase tracking-wider">
+        <div class="space-y-1">
+          <div class="text-xs text-neutral-content/60 uppercase tracking-wider">
             Planned this week
-          </span>
-          <%= for total <- @category_totals do %>
-            <span class="badge badge-outline gap-1">
-              <span class="font-medium">{total.name}</span>
-              <span class="text-neutral-content/70">{format_minutes(total.minutes)}</span>
-            </span>
-          <% end %>
+          </div>
+          <ul class="text-sm">
+            <%= for total <- @category_totals do %>
+              <li
+                class="flex items-center gap-2 py-0.5"
+                style={"padding-left: #{total.depth * 1.25}rem"}
+              >
+                <span
+                  class="size-2.5 rounded-full border border-neutral-content/30 shrink-0"
+                  style={"background:#{total.color_hex}"}
+                >
+                </span>
+                <span class={[
+                  "truncate",
+                  total.depth == 0 && "font-medium",
+                  total.depth > 0 && "text-neutral-content/80"
+                ]}>
+                  {total.name}
+                </span>
+                <span class="text-neutral-content/60 tabular-nums">
+                  {format_minutes(total.minutes)}
+                </span>
+              </li>
+            <% end %>
+          </ul>
         </div>
       <% end %>
 
