@@ -85,6 +85,46 @@ defmodule Electricbrain.GoogleCalendar do
   end
 
   @doc """
+  Lists events on the user's primary calendar between `time_min` and
+  `time_max` (both `DateTime`). Single-events expansion is on, so
+  recurring instances come back as individual events. Used by the
+  orphan-cleanup tooling — see `Electricbrain.Calendar.Cleanup`.
+
+  Returns `{:ok, [event_map]}` where each event map is the raw Google
+  Calendar API representation (at minimum `"id"`, `"summary"`,
+  `"start"`, `"end"`).
+  """
+  def list_events_for_range(user, %DateTime{} = time_min, %DateTime{} = time_max, opts \\ []) do
+    req = Keyword.get(opts, :req, default_req())
+
+    with {:ok, user} <- ensure_fresh_token(user, req) do
+      url = "#{@calendar_base}/calendars/#{@primary_calendar_id}/events"
+
+      params = [
+        timeMin: DateTime.to_iso8601(time_min),
+        timeMax: DateTime.to_iso8601(time_max),
+        singleEvents: "true",
+        maxResults: "2500"
+      ]
+
+      case Req.get(req,
+             url: url,
+             params: params,
+             headers: [{"authorization", "Bearer #{user.google_access_token}"}]
+           ) do
+        {:ok, %{status: 200, body: %{"items" => items}}} ->
+          {:ok, items}
+
+        {:ok, %{status: status, body: body}} ->
+          {:error, {:http, status, body}}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
   Refreshes the access token via the refresh token if it's missing or about to
   expire (within 60 seconds). Returns `{:ok, updated_user}`.
   """

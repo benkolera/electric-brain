@@ -5,6 +5,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
 
   alias Electricbrain.Categories
   alias Electricbrain.GoogleCalendar
+  alias Electricbrain.Habits.Availability
   alias Electricbrain.Habits.Habit
   alias Electricbrain.Planner.Entry
   alias Electricbrain.Todos.Todo
@@ -31,11 +32,15 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     user = socket.assigns.current_user
     week_start = socket.assigns.week_start
 
+    entries = read_week_entries(user, week_start)
+
     entries =
-      Entry
-      |> Ash.Query.filter(week_start == ^week_start)
-      |> Ash.Query.load([:todo, :habit])
-      |> Ash.read!(actor: user)
+      if entries == [] do
+        prime_week(user, week_start)
+        read_week_entries(user, week_start)
+      else
+        entries
+      end
 
     {scheduled, floating} = Enum.split_with(entries, & &1.planned_at)
 
@@ -134,6 +139,58 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     todos ++ habits
   end
 
+  defp read_week_entries(user, week_start) do
+    Entry
+    |> Ash.Query.filter(week_start == ^week_start)
+    |> Ash.Query.load([:todo, :habit])
+    |> Ash.read!(actor: user)
+  end
+
+  defp prime_week(user, week_start) do
+    fixed_habits =
+      Habit
+      |> Ash.Query.filter(fixed_schedule == true)
+      |> Ash.Query.load(:availabilities)
+      |> Ash.read!(actor: user)
+
+    for habit <- fixed_habits,
+        avail <- habit.availabilities,
+        dow <- availability_days(avail),
+        planned_at = availability_to_utc(week_start, dow, avail.start_time, user.timezone),
+        planned_at != nil do
+      Entry
+      |> Ash.Changeset.for_create(
+        :create,
+        %{
+          week_start: week_start,
+          planned_at: planned_at,
+          duration_minutes: Availability.duration_minutes(avail),
+          habit_id: habit.id
+        },
+        actor: user
+      )
+      |> Ash.create!()
+    end
+
+    :ok
+  end
+
+
+  # nil day_of_week means "every day" — expand into 1..7.
+  defp availability_days(%{day_of_week: nil}), do: 1..7 |> Enum.to_list()
+  defp availability_days(%{day_of_week: dow}), do: [dow]
+
+  defp availability_to_utc(week_start, dow, start_time, timezone) do
+    date = Date.add(week_start, dow - 1)
+
+    case DateTime.new(date, start_time, timezone) do
+      {:ok, dt} -> DateTime.shift_zone!(dt, "Etc/UTC")
+      {:ambiguous, _earlier, later} -> DateTime.shift_zone!(later, "Etc/UTC")
+      {:gap, _before, after_gap} -> DateTime.shift_zone!(after_gap, "Etc/UTC")
+      {:error, _} -> nil
+    end
+  end
+
   defp monday_in_tz(now, timezone) do
     local = DateTime.shift_zone!(now, timezone)
     date = DateTime.to_date(local)
@@ -142,23 +199,60 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   end
 
   defp event_payload(entries, timezone) do
-    Enum.map(entries, fn entry ->
+    Enum.flat_map(entries, fn entry ->
       start_utc = entry.planned_at
-      schedulable = entry.todo || entry.habit
-      duration = (schedulable.duration_minutes || 60) * 60
+      duration = entry_duration_minutes(entry) * 60
       end_utc = DateTime.add(start_utc, duration, :second)
       title = (entry.todo && entry.todo.title) || (entry.habit && entry.habit.title)
 
-      %{
-        id: entry.id,
-        title: title || "(untitled)",
-        start: DateTime.to_iso8601(start_utc),
-        end: DateTime.to_iso8601(end_utc),
-        _customContent: %{}
-      }
-      |> Map.put(:_kind, kind_label(entry))
+      entry
+      |> event_slices(start_utc, end_utc, timezone)
+      |> Enum.with_index(fn {s_utc, e_utc}, idx ->
+        base = %{
+          id: "#{entry.id}__chunk__#{idx}",
+          title: title || "(untitled)",
+          start: DateTime.to_iso8601(s_utc),
+          end: DateTime.to_iso8601(e_utc),
+          _customContent: %{}
+        }
+        |> Map.put(:_kind, kind_label(entry))
+
+        if idx == 0,
+          do: base,
+          else: Map.put(base, :_options, %{disableDND: true, disableResize: true})
+      end)
     end)
-    |> tap(fn _ -> timezone end)
+  end
+
+  # Returns [{start_utc, end_utc}] split at midnight in the user's timezone so
+  # Schedule-X renders each day-slice in its time-grid column instead of as a
+  # multi-day all-day banner. Capped at two slices — anything longer than 2
+  # local days would be unusual for a sleep/ritual block.
+  defp event_slices(_entry, start_utc, end_utc, timezone) do
+    start_local = DateTime.shift_zone!(start_utc, timezone)
+    end_local = DateTime.shift_zone!(end_utc, timezone)
+    start_date = DateTime.to_date(start_local)
+    end_date = DateTime.to_date(end_local)
+
+    if Date.compare(start_date, end_date) == :eq do
+      [{start_utc, end_utc}]
+    else
+      # Schedule-X's week range-end clamps to 23:59 (minute precision) on the
+      # last visible day; an end of 23:59:59 falls outside the range and the
+      # slice gets dropped. Use 23:59:00 so the very last visible day's slice
+      # still positions in the time grid.
+      day1_end_utc =
+        start_date
+        |> DateTime.new!(~T[23:59:00], timezone)
+        |> DateTime.shift_zone!("Etc/UTC")
+
+      day2_start_utc =
+        end_date
+        |> DateTime.new!(~T[00:00:00], timezone)
+        |> DateTime.shift_zone!("Etc/UTC")
+
+      [{start_utc, day1_end_utc}, {day2_start_utc, end_utc}]
+    end
   end
 
   defp kind_label(%{todo_id: tid}) when not is_nil(tid), do: "todo"
@@ -178,12 +272,15 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     end
   end
 
+  defp fixed_schedule_entry?(%{habit: %{fixed_schedule: true}}), do: true
+  defp fixed_schedule_entry?(_), do: false
+
   defp selected_entry(_scheduled, nil), do: nil
   defp selected_entry(scheduled, id), do: Enum.find(scheduled, &(&1.id == id))
 
   defp entry_duration_minutes(entry) do
     schedulable = entry.todo || entry.habit
-    (schedulable && schedulable.duration_minutes) || 60
+    entry.duration_minutes || (schedulable && schedulable.duration_minutes) || 60
   end
 
   defp format_entry_time_range(entry, timezone) do
@@ -234,8 +331,8 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
 
     attrs =
       case kind do
-        "todo" -> %{todo_id: id, week_start: socket.assigns.week_start}
-        "habit" -> %{habit_id: id, week_start: socket.assigns.week_start}
+        "todo" -> %{todo_id: id, week_start: socket.assigns.week_start, duration_minutes: 60}
+        "habit" -> %{habit_id: id, week_start: socket.assigns.week_start, duration_minutes: 60}
       end
 
     case Entry
@@ -285,11 +382,30 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     end
   end
 
+  def handle_event("reset_week", _params, socket) do
+    user = socket.assigns.current_user
+    week_start = socket.assigns.week_start
+
+    entries =
+      Entry
+      |> Ash.Query.filter(week_start == ^week_start)
+      |> Ash.read!(actor: user)
+
+    for entry <- entries do
+      delete_from_google_if_synced(user, entry)
+      Ash.destroy!(entry, actor: user)
+    end
+
+    {:noreply, socket |> load_week() |> push_scheduled_events()}
+  end
+
   def handle_event("unschedule_entry", %{"id" => id}, socket) do
     user = socket.assigns.current_user
 
-    Entry
-    |> Ash.get!(id, actor: user)
+    entry = Ash.get!(Entry, id, actor: user)
+    delete_from_google_if_synced(user, entry)
+
+    entry
     |> Ash.Changeset.for_update(:unschedule, %{}, actor: user)
     |> Ash.update!()
 
@@ -299,27 +415,68 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   def handle_event("remove_entry", %{"id" => id}, socket) do
     user = socket.assigns.current_user
 
-    Entry
-    |> Ash.get!(id, actor: user)
-    |> Ash.destroy!(actor: user)
+    entry = Ash.get!(Entry, id, actor: user)
+    delete_from_google_if_synced(user, entry)
+    Ash.destroy!(entry, actor: user)
 
     {:noreply, socket |> load_week() |> push_scheduled_events()}
   end
 
-  def handle_event("entry_rescheduled", %{"id" => id, "start" => start_iso}, socket) do
+  # Before destroying or unscheduling an entry, drop its Google Calendar
+  # event so we don't leave orphans (which then duplicate on the next
+  # sync, since the freshly-created entry has google_event_id=nil and
+  # the push code POSTs rather than PUTs). delete_event is idempotent —
+  # 404/410 are treated as success — so racing or already-deleted events
+  # don't error. Failures are logged but don't block the local destroy
+  # (Google can be cleaned up later via Calendar.Cleanup.delete_orphans_for_week).
+  defp delete_from_google_if_synced(user, entry) do
+    if entry.google_event_id && GoogleCalendar.connected?(user) do
+      case GoogleCalendar.delete_event(user, entry) do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          require Logger
+
+          Logger.warning(
+            "Failed to delete Google event for entry #{entry.id}: #{inspect(reason)}"
+          )
+
+          :ok
+      end
+    else
+      :ok
+    end
+  end
+
+  def handle_event("entry_rescheduled", %{"id" => id, "start" => start_iso} = params, socket) do
     user = socket.assigns.current_user
 
-    case parse_zoned(start_iso) do
-      {:ok, utc} ->
-        Entry
-        |> Ash.get!(id, actor: user)
-        |> Ash.Changeset.for_update(:schedule, %{planned_at: utc}, actor: user)
-        |> Ash.update!()
+    with {:ok, start_utc} <- parse_zoned(start_iso) do
+      attrs =
+        case params["end"] do
+          end_iso when is_binary(end_iso) ->
+            case parse_zoned(end_iso) do
+              {:ok, end_utc} ->
+                duration = div(DateTime.diff(end_utc, start_utc, :second), 60)
+                %{planned_at: start_utc, duration_minutes: max(duration, 15)}
 
-        {:noreply, load_week(socket)}
+              _ ->
+                %{planned_at: start_utc}
+            end
 
-      :error ->
-        {:noreply, socket}
+          _ ->
+            %{planned_at: start_utc}
+        end
+
+      Entry
+      |> Ash.get!(id, actor: user)
+      |> Ash.Changeset.for_update(:schedule, attrs, actor: user)
+      |> Ash.update!()
+
+      {:noreply, socket |> load_week() |> push_scheduled_events()}
+    else
+      :error -> {:noreply, socket}
     end
   end
 
@@ -393,7 +550,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
+    <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
       <div class="flex items-center justify-between">
         <div>
           <h1 class="font-display text-3xl font-bold tracking-tight text-accent drop-shadow-[0_0_12px_var(--color-accent)]">
@@ -414,6 +571,15 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
               <.icon name="hero-cloud-arrow-up-micro" class="size-4" /> Sync to Google
             </button>
           <% end %>
+          <button
+            type="button"
+            phx-click="reset_week"
+            data-confirm="Wipe every entry from this week and re-prime from fixed-schedule habits?"
+            class="btn btn-sm btn-ghost text-error"
+            title="Delete all entries for this week and re-prime from fixed-schedule habits"
+          >
+            <.icon name="hero-arrow-path-micro" class="size-4" /> Reset week
+          </button>
           <button type="button" phx-click="prev_week" class="btn btn-sm btn-ghost">
             <.icon name="hero-chevron-left-micro" class="size-4" /> Prev
           </button>
@@ -570,12 +736,13 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
             </div>
           <% end %>
 
-          <%= if @scheduled != [] do %>
+          <% sidebar_scheduled = Enum.reject(@scheduled, &fixed_schedule_entry?/1) %>
+          <%= if sidebar_scheduled != [] do %>
             <div class="card bg-base-200 border border-base-300">
               <div class="card-body p-4">
                 <h2 class="card-title text-base">Scheduled</h2>
                 <ul class="space-y-1 mt-2">
-                  <%= for entry <- @scheduled do %>
+                  <%= for entry <- sidebar_scheduled do %>
                     <li class={[
                       "flex items-center gap-2 text-sm rounded px-1 transition-colors",
                       if(@selected_entry_id == entry.id, do: "bg-accent/10", else: "")
