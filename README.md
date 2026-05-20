@@ -41,6 +41,13 @@ Single Phoenix app — no umbrella. Deployed as half of the
   tree shows where the week's hours actually go.
 - **Weekly review** — Atomic Habits ch. 20. Per-habit reflection
   with a 1-5 Goldilocks difficulty rating and freeform notes.
+- **Metrics** — Beeminder-style numeric series. Each metric has a
+  unit and an aggregation (point-in-time or summed per period);
+  related metrics share a `group_name` so they cluster on one chart
+  (Deadlift 1RM/3RM/8RM). Measurements can be entered manually
+  (with backfill) or captured at habit completion — attach metrics
+  to a habit, complete it, and a prompt asks for each value before
+  the completion finalises.
 - **Google Calendar push** — one-way sync from the planner to the
   user's primary calendar. Idempotent via stored `google_event_id`;
   category colour drives the event colour.
@@ -67,6 +74,7 @@ flowchart LR
         timeblocks[TimeBlocks]
         planner[Planner.Entry]
         notes[Notes]
+        metrics[Metrics<br/>+ Measurement<br/>+ HabitMetric]
     end
 
     liveview --> accounts
@@ -76,15 +84,19 @@ flowchart LR
     liveview --> timeblocks
     liveview --> planner
     liveview --> notes
+    liveview --> metrics
 
     todos --> categories
     habits --> categories
     timeblocks --> categories
     notes --> categories
+    metrics --> categories
 
     planner -->|"todo_id or<br/>habit_id or<br/>time_block_id"| todos
     planner --> habits
     planner --> timeblocks
+
+    metrics -->|"HabitMetric join +<br/>Measurement.completion_id"| habits
 
     planner -.->|"sync"| gcal[Google<br/>Calendar API]
 
