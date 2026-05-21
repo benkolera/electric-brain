@@ -5,6 +5,7 @@ defmodule Electricbrain.AgendaTest do
   alias Electricbrain.Categories
   alias Electricbrain.Habits.Habit
   alias Electricbrain.Planner.Entry
+  alias Electricbrain.Todos.Todo
 
   describe "compute_current_next/2" do
     test "current = items overlapping now; next = soonest after now" do
@@ -62,6 +63,47 @@ defmodule Electricbrain.AgendaTest do
       {:ok, pid1} = Agenda.ensure_started(user.id)
       {:ok, pid2} = Agenda.ensure_started(user.id)
       assert pid1 == pid2
+    end
+
+    test "primes recurring-todo entries on startup so today picks them up",
+         %{user: user} do
+      inbox = Categories.inbox_for(user)
+      tz = user.timezone || "Etc/UTC"
+      now = DateTime.utc_now()
+
+      # Anchor at "noon today (local)" so the entry falls into the
+      # day_window even on weekends.
+      today_local = DateTime.shift_zone!(now, tz) |> DateTime.to_date()
+      {:ok, anchor_local} = DateTime.new(today_local, ~T[12:00:00], tz)
+      anchor_utc = DateTime.shift_zone!(anchor_local, "Etc/UTC")
+
+      {:ok, todo} =
+        Todo
+        |> Ash.Changeset.for_create(
+          :create,
+          %{
+            title: "Bin night",
+            category_id: inbox.id,
+            recurrence: :weekly,
+            recurrence_anchor: anchor_utc
+          },
+          actor: user
+        )
+        |> Ash.create()
+
+      # No Entry exists yet — only the Todo template.
+      assert Ash.read!(Entry, actor: user) == []
+
+      {:ok, pid} = Agenda.ensure_started(user.id)
+      Ecto.Adapters.SQL.Sandbox.allow(Electricbrain.Repo, self(), pid)
+
+      # The Agenda's init calls prime → an Entry should now exist for
+      # this todo this week. Force a refresh to be deterministic.
+      Agenda.refresh(user.id)
+      :ok = Agenda.state(user.id) |> then(fn _ -> :ok end)
+
+      entries = Ash.read!(Entry, actor: user) |> Enum.filter(&(&1.todo_id == todo.id))
+      assert length(entries) >= 1
     end
 
     test "refresh recomputes and broadcasts when an entry is added", %{user: user} do

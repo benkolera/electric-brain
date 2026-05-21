@@ -7,8 +7,6 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   alias Electricbrain.Categories.Colors
   alias Electricbrain.GoogleCalendar
   alias Electricbrain.Habits.Habit
-  alias Electricbrain.TimeBlocks.Availability, as: TimeBlockAvailability
-  alias Electricbrain.TimeBlocks.TimeBlock
   alias Electricbrain.Planner.Entry
   alias Electricbrain.Todos.Todo
 
@@ -188,103 +186,10 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     |> Ash.read!(actor: user)
   end
 
-  defp prime_week(user, week_start) do
-    existing = read_week_entries(user, week_start)
-    # NB: dedup by integer microsecond key — DB-loaded DateTimes have
-    # `microsecond: {n, 6}` precision while freshly-computed ones from
-    # availability_to_utc are `{0, 0}`, so naive struct equality misses
-    # the match and we'd duplicate every time the planner loads.
-    existing_time_block_slots =
-      MapSet.new(existing, &{&1.time_block_id, datetime_key(&1.planned_at)})
+  defp prime_week(user, week_start), do: Electricbrain.Planner.Prime.week(user, week_start)
 
-    existing_todo_ids = existing |> Enum.map(& &1.todo_id) |> MapSet.new()
-
-    prime_time_blocks(user, week_start, existing_time_block_slots)
-    prime_recurring_todos(user, week_start, existing_todo_ids)
-
-    :ok
-  end
-
-  defp datetime_key(nil), do: nil
-  defp datetime_key(%DateTime{} = dt), do: DateTime.to_unix(dt, :microsecond)
-
-  defp prime_time_blocks(user, week_start, existing_slots) do
-    time_blocks =
-      TimeBlock
-      |> Ash.Query.load(:availabilities)
-      |> Ash.read!(actor: user)
-
-    for block <- time_blocks,
-        avail <- block.availabilities,
-        dow <- availability_days(avail),
-        planned_at = availability_to_utc(week_start, dow, avail.start_time, user.timezone),
-        planned_at != nil,
-        not MapSet.member?(existing_slots, {block.id, datetime_key(planned_at)}) do
-      Entry
-      |> Ash.Changeset.for_create(
-        :create,
-        %{
-          week_start: week_start,
-          planned_at: planned_at,
-          duration_minutes: TimeBlockAvailability.duration_minutes(avail),
-          time_block_id: block.id
-        },
-        actor: user
-      )
-      |> Ash.create!()
-    end
-  end
-
-  defp prime_recurring_todos(user, week_start, existing_todo_ids) do
-    # `status != :done` is intentionally NOT applied here — recurring
-    # todos are never "completed" globally; the per-week presence on
-    # the planner is the cycle. Marking the todo done via the legacy
-    # toggle would still hide it from auto-prime via the recurrence
-    # check below if we wanted; for now we keep things simple.
-    todos =
-      Todo
-      |> Ash.Query.filter(recurrence != :none)
-      |> Ash.read!(actor: user)
-
-    for todo <- todos,
-        not MapSet.member?(existing_todo_ids, todo.id),
-        {:ok, planned_at} <-
-          [Electricbrain.Todos.Recurrence.due_in_week?(todo, week_start, user.timezone)] do
-      Entry
-      |> Ash.Changeset.for_create(
-        :create,
-        %{
-          week_start: week_start,
-          planned_at: planned_at,
-          todo_id: todo.id
-        },
-        actor: user
-      )
-      |> Ash.create!()
-    end
-  end
-
-  # nil day_of_week means "every day" — expand into 1..7.
-  defp availability_days(%{day_of_week: nil}), do: 1..7 |> Enum.to_list()
-  defp availability_days(%{day_of_week: dow}), do: [dow]
-
-  defp availability_to_utc(week_start, dow, start_time, timezone) do
-    date = Date.add(week_start, dow - 1)
-
-    case DateTime.new(date, start_time, timezone) do
-      {:ok, dt} -> DateTime.shift_zone!(dt, "Etc/UTC")
-      {:ambiguous, _earlier, later} -> DateTime.shift_zone!(later, "Etc/UTC")
-      {:gap, _before, after_gap} -> DateTime.shift_zone!(after_gap, "Etc/UTC")
-      {:error, _} -> nil
-    end
-  end
-
-  defp monday_in_tz(now, timezone) do
-    local = DateTime.shift_zone!(now, timezone)
-    date = DateTime.to_date(local)
-    days_back = Date.day_of_week(date) - 1
-    Date.add(date, -days_back)
-  end
+  defp monday_in_tz(now, timezone),
+    do: Electricbrain.Planner.Prime.monday_in_tz(now, timezone)
 
   defp event_payload(entries, timezone, categories_by_id) do
     Enum.flat_map(entries, fn entry ->

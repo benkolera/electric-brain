@@ -132,9 +132,23 @@ defmodule Electricbrain.Agenda do
 
   defp build_state(user) do
     now = DateTime.utc_now()
+    prime_visible_weeks(user, now)
     items = load_items(user, now)
     {current, next} = compute_current_next(items, now)
     %{user: user, items: items, current: current, next: next}
+  end
+
+  # The agenda's day_window can straddle a week boundary (the lookback
+  # is "today - 1 day" and the look-ahead is "today + 2 days" in user
+  # local time), so we prime BOTH the current and next week's Monday.
+  # Both calls are idempotent.
+  defp prime_visible_weeks(user, now) do
+    tz = user.timezone || "Etc/UTC"
+    this_monday = Electricbrain.Planner.Prime.monday_in_tz(now, tz)
+    next_monday = Date.add(this_monday, 7)
+
+    Electricbrain.Planner.Prime.week(user, this_monday)
+    Electricbrain.Planner.Prime.week(user, next_monday)
   end
 
   defp load_items(user, now) do
