@@ -50,6 +50,7 @@ defmodule ElectricbrainWeb.TimeBlockLive.Index do
 
   def handle_event("save", %{"form" => params}, socket) do
     user = socket.assigns.current_user
+    params = Map.put(params, "category_id", socket.assigns.picker_selected_id)
 
     case AshPhoenix.Form.submit(socket.assigns.form, params: params) do
       {:ok, _block} ->
