@@ -62,21 +62,36 @@ defmodule ElectricbrainWeb.NoteLive.Show do
   end
 
   defp render_block(assigns, %{kind: :excalidraw} = block) do
+    light = block.data["preview_svg_light"] || ""
+    dark = block.data["preview_svg_dark"] || ""
+    dark_for_render = if dark != "", do: dark, else: light
+
     assigns =
       assigns
       |> assign(:block_id, block.id)
-      |> assign(:preview_svg, block.data["preview_svg"] || "")
+      |> assign(:preview_svg_light, light)
+      |> assign(:preview_svg_dark, dark_for_render)
+      |> assign(:has_preview, light != "")
 
     ~H"""
     <div
       id={"excalidraw-view-#{@block_id}"}
-      class="w-full aspect-[3/2] bg-base-200 border border-base-300 rounded-box overflow-hidden flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full"
+      class="w-full aspect-[3/2] bg-base-200 border border-base-300 rounded-box overflow-hidden relative"
     >
-      <%= if @preview_svg != "" do %>
-        {Phoenix.HTML.raw(@preview_svg)}
-      <% else %>
-        <span class="text-sm text-neutral-content/60">Empty sketch</span>
-      <% end %>
+      <div class="absolute inset-0 dark:hidden flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full">
+        <%= if @has_preview do %>
+          {Phoenix.HTML.raw(@preview_svg_light)}
+        <% else %>
+          <span class="text-sm text-neutral-content/60">Empty sketch</span>
+        <% end %>
+      </div>
+      <div class="absolute inset-0 hidden dark:flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full">
+        <%= if @has_preview do %>
+          {Phoenix.HTML.raw(@preview_svg_dark)}
+        <% else %>
+          <span class="text-sm text-neutral-content/60">Empty sketch</span>
+        <% end %>
+      </div>
     </div>
     """
   end

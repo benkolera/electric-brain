@@ -63,7 +63,7 @@ defmodule Electricbrain.NotesTest do
       assert block.position == 0
     end
 
-    test "creates an excalidraw block with snapshot + preview_svg", %{user: user} do
+    test "creates an excalidraw block with snapshot + light/dark previews", %{user: user} do
       note = create_note!(user)
 
       block =
@@ -72,13 +72,15 @@ defmodule Electricbrain.NotesTest do
           kind: :excalidraw,
           data: %{
             "snapshot" => %{"elements" => []},
-            "preview_svg" => "<svg></svg>"
+            "preview_svg_light" => "<svg id='light'></svg>",
+            "preview_svg_dark" => "<svg id='dark'></svg>"
           },
           position: 1
         })
 
       assert block.kind == :excalidraw
-      assert block.data["preview_svg"] == "<svg></svg>"
+      assert block.data["preview_svg_light"] == "<svg id='light'></svg>"
+      assert block.data["preview_svg_dark"] == "<svg id='dark'></svg>"
     end
 
     test "rejects an unknown kind", %{user: user} do
@@ -107,7 +109,7 @@ defmodule Electricbrain.NotesTest do
                |> Ash.create()
     end
 
-    test "rejects excalidraw without :snapshot or :preview_svg", %{user: user} do
+    test "rejects excalidraw missing required keys", %{user: user} do
       note = create_note!(user)
 
       assert {:error, _} =
@@ -126,7 +128,7 @@ defmodule Electricbrain.NotesTest do
                  %{
                    note_id: note.id,
                    kind: :excalidraw,
-                   data: %{"snapshot" => %{}},
+                   data: %{"snapshot" => %{}, "preview_svg_light" => ""},
                    position: 0
                  },
                  actor: user

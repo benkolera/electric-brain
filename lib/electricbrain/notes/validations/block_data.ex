@@ -31,8 +31,11 @@ defmodule Electricbrain.Notes.Validations.BlockData do
       not Map.has_key?(data, "snapshot") and not Map.has_key?(data, :snapshot) ->
         {:error, "excalidraw block requires a :snapshot key"}
 
-      not Map.has_key?(data, "preview_svg") and not Map.has_key?(data, :preview_svg) ->
-        {:error, "excalidraw block requires a :preview_svg key"}
+      not Map.has_key?(data, "preview_svg_light") and not Map.has_key?(data, :preview_svg_light) ->
+        {:error, "excalidraw block requires a :preview_svg_light key"}
+
+      not Map.has_key?(data, "preview_svg_dark") and not Map.has_key?(data, :preview_svg_dark) ->
+        {:error, "excalidraw block requires a :preview_svg_dark key"}
 
       true ->
         :ok

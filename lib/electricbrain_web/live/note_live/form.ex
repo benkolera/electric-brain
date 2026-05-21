@@ -101,8 +101,17 @@ defmodule ElectricbrainWeb.NoteLive.Form do
               _ -> existing.data["snapshot"] || %{}
             end
 
-          preview_svg = Map.get(submitted, "preview_svg", existing.data["preview_svg"] || "")
-          %{"snapshot" => snapshot, "preview_svg" => preview_svg}
+          light =
+            Map.get(submitted, "preview_svg_light", existing.data["preview_svg_light"] || "")
+
+          dark =
+            Map.get(submitted, "preview_svg_dark", existing.data["preview_svg_dark"] || "")
+
+          %{
+            "snapshot" => snapshot,
+            "preview_svg_light" => light,
+            "preview_svg_dark" => dark
+          }
 
         _ ->
           existing.data
@@ -124,7 +133,9 @@ defmodule ElectricbrainWeb.NoteLive.Form do
   end
 
   defp default_data(:markdown), do: %{"body" => ""}
-  defp default_data(:excalidraw), do: %{"snapshot" => %{}, "preview_svg" => ""}
+
+  defp default_data(:excalidraw),
+    do: %{"snapshot" => %{}, "preview_svg_light" => "", "preview_svg_dark" => ""}
 
   defp remove_block(socket, cid) do
     blocks = Enum.reject(socket.assigns.blocks, &(&1.client_id == cid))
@@ -394,19 +405,26 @@ defmodule ElectricbrainWeb.NoteLive.Form do
 
   defp render_block_body(%{block: block} = assigns) when block.kind == :excalidraw do
     cid = block.client_id
+    light_svg = block.data["preview_svg_light"] || ""
+    dark_svg = block.data["preview_svg_dark"] || ""
+    dark_for_render = if dark_svg != "", do: dark_svg, else: light_svg
 
     assigns =
       assigns
       |> assign(:cid, cid)
       |> assign(:snapshot_input_id, "block-#{cid}-snapshot")
-      |> assign(:svg_input_id, "block-#{cid}-svg")
-      |> assign(:preview_id, "block-#{cid}-preview")
+      |> assign(:svg_light_input_id, "block-#{cid}-svg-light")
+      |> assign(:svg_dark_input_id, "block-#{cid}-svg-dark")
+      |> assign(:preview_light_id, "block-#{cid}-preview-light")
+      |> assign(:preview_dark_id, "block-#{cid}-preview-dark")
       |> assign(:overlay_id, "block-#{cid}-overlay")
       |> assign(:editor_id, "block-#{cid}-editor")
       |> assign(:open_btn_id, "block-#{cid}-open")
       |> assign(:close_btn_id, "block-#{cid}-close")
       |> assign(:snapshot_json, Jason.encode!(block.data["snapshot"] || %{}))
-      |> assign(:preview_svg, block.data["preview_svg"] || "")
+      |> assign(:preview_svg_light, light_svg)
+      |> assign(:preview_svg_dark, dark_for_render)
+      |> assign(:has_preview, light_svg != "")
 
     ~H"""
     <div class="space-y-2">
@@ -418,20 +436,42 @@ defmodule ElectricbrainWeb.NoteLive.Form do
       />
       <input
         type="hidden"
-        id={@svg_input_id}
-        name={"blocks[#{@cid}][preview_svg]"}
-        value={@preview_svg}
+        id={@svg_light_input_id}
+        name={"blocks[#{@cid}][preview_svg_light]"}
+        value={@preview_svg_light}
+      />
+      <input
+        type="hidden"
+        id={@svg_dark_input_id}
+        name={"blocks[#{@cid}][preview_svg_dark]"}
+        value={@preview_svg_dark}
       />
 
-      <div
-        id={@preview_id}
-        class="w-full aspect-[3/2] bg-base-100 border border-base-300 rounded-box overflow-hidden flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full"
-      >
-        <%= if @preview_svg != "" do %>
-          {Phoenix.HTML.raw(@preview_svg)}
-        <% else %>
-          <span class="text-sm text-neutral-content/60">Empty canvas — tap Open to draw.</span>
-        <% end %>
+      <div class="w-full aspect-[3/2] bg-base-100 border border-base-300 rounded-box overflow-hidden relative">
+        <div
+          id={@preview_light_id}
+          class="absolute inset-0 dark:hidden flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full"
+        >
+          <%= if @has_preview do %>
+            {Phoenix.HTML.raw(@preview_svg_light)}
+          <% else %>
+            <span class="text-sm text-neutral-content/60">
+              Empty canvas — tap Open to draw.
+            </span>
+          <% end %>
+        </div>
+        <div
+          id={@preview_dark_id}
+          class="absolute inset-0 hidden dark:flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full"
+        >
+          <%= if @has_preview do %>
+            {Phoenix.HTML.raw(@preview_svg_dark)}
+          <% else %>
+            <span class="text-sm text-neutral-content/60">
+              Empty canvas — tap Open to draw.
+            </span>
+          <% end %>
+        </div>
       </div>
 
       <div class="flex justify-end">
@@ -459,8 +499,10 @@ defmodule ElectricbrainWeb.NoteLive.Form do
           data-open-button={"##{@open_btn_id}"}
           data-close-button={"##{@close_btn_id}"}
           data-snapshot-input={"##{@snapshot_input_id}"}
-          data-svg-input={"##{@svg_input_id}"}
-          data-preview={"##{@preview_id}"}
+          data-svg-light-input={"##{@svg_light_input_id}"}
+          data-svg-dark-input={"##{@svg_dark_input_id}"}
+          data-preview-light={"##{@preview_light_id}"}
+          data-preview-dark={"##{@preview_dark_id}"}
           class="relative flex-1 min-h-0 touch-none"
         >
         </div>

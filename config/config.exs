@@ -89,8 +89,22 @@ config :electricbrain, Electricbrain.Mailer, adapter: Swoosh.Adapters.Local
 config :esbuild,
   version: "0.25.4",
   electricbrain: [
-    args:
-      ~w(js/app.js --bundle --target=es2022 --conditions=production --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=. --loader:.woff2=file --loader:.woff=file),
+    args: [
+      "js/app.js",
+      "--bundle",
+      "--target=es2022",
+      "--conditions=production",
+      "--format=esm",
+      "--splitting",
+      "--outdir=../priv/static/assets/js",
+      "--chunk-names=chunks/[name]-[hash]",
+      "--external:/fonts/*",
+      "--external:/images/*",
+      "--alias:@=.",
+      "--loader:.woff2=file",
+      "--loader:.woff=file",
+      ~s(--define:process.env.NODE_ENV="production")
+    ],
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]

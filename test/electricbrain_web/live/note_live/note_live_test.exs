@@ -53,7 +53,7 @@ defmodule ElectricbrainWeb.NoteLiveTest do
       create_block!(user, %{
         note_id: note.id,
         kind: :excalidraw,
-        data: %{"snapshot" => %{}, "preview_svg" => ""},
+        data: %{"snapshot" => %{}, "preview_svg_light" => "", "preview_svg_dark" => ""},
         position: 0
       })
 
@@ -257,14 +257,19 @@ defmodule ElectricbrainWeb.NoteLiveTest do
       create_block!(user, %{
         note_id: note.id,
         kind: :excalidraw,
-        data: %{"snapshot" => %{}, "preview_svg" => "<svg data-marker=\"excalidraw-test\"></svg>"},
+        data: %{
+          "snapshot" => %{},
+          "preview_svg_light" => "<svg data-marker=\"excalidraw-test-light\"></svg>",
+          "preview_svg_dark" => "<svg data-marker=\"excalidraw-test-dark\"></svg>"
+        },
         position: 1
       })
 
       {:ok, _view, html} = live(conn, ~p"/notes/#{note.id}")
       assert html =~ "<h1>Heading</h1>"
       assert html =~ "excalidraw-view-"
-      assert html =~ "excalidraw-test"
+      assert html =~ "excalidraw-test-light"
+      assert html =~ "excalidraw-test-dark"
     end
   end
 end
