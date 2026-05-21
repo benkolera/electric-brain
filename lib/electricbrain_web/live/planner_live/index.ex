@@ -190,7 +190,13 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
 
   defp prime_week(user, week_start) do
     existing = read_week_entries(user, week_start)
-    existing_time_block_slots = MapSet.new(existing, &{&1.time_block_id, &1.planned_at})
+    # NB: dedup by integer microsecond key — DB-loaded DateTimes have
+    # `microsecond: {n, 6}` precision while freshly-computed ones from
+    # availability_to_utc are `{0, 0}`, so naive struct equality misses
+    # the match and we'd duplicate every time the planner loads.
+    existing_time_block_slots =
+      MapSet.new(existing, &{&1.time_block_id, datetime_key(&1.planned_at)})
+
     existing_todo_ids = existing |> Enum.map(& &1.todo_id) |> MapSet.new()
 
     prime_time_blocks(user, week_start, existing_time_block_slots)
@@ -198,6 +204,9 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
 
     :ok
   end
+
+  defp datetime_key(nil), do: nil
+  defp datetime_key(%DateTime{} = dt), do: DateTime.to_unix(dt, :microsecond)
 
   defp prime_time_blocks(user, week_start, existing_slots) do
     time_blocks =
@@ -210,7 +219,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
         dow <- availability_days(avail),
         planned_at = availability_to_utc(week_start, dow, avail.start_time, user.timezone),
         planned_at != nil,
-        not MapSet.member?(existing_slots, {block.id, planned_at}) do
+        not MapSet.member?(existing_slots, {block.id, datetime_key(planned_at)}) do
       Entry
       |> Ash.Changeset.for_create(
         :create,
@@ -730,7 +739,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]} wide>
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 class="font-display text-3xl font-bold tracking-tight text-accent drop-shadow-[0_0_12px_var(--color-accent)]">
             Plan
@@ -768,6 +777,16 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
           <button type="button" phx-click="next_week" class="btn btn-sm btn-ghost">
             Next <.icon name="hero-chevron-right-micro" class="size-4" />
           </button>
+        </div>
+      </div>
+
+      <div class="lg:hidden alert alert-info text-sm">
+        <.icon name="hero-information-circle-micro" class="size-5 shrink-0" />
+        <div>
+          <p class="font-semibold">Best on desktop</p>
+          <p class="text-xs">
+            The weekly calendar is dense — drag-and-drop, multi-day blocks and the per-category totals all need room to breathe. Open this page on a larger screen for the Sunday ritual; the rest of the app works great on mobile.
+          </p>
         </div>
       </div>
 

@@ -270,6 +270,52 @@ defmodule ElectricbrainWeb.PlannerLive.IndexTest do
     refute is_nil(todo_entry.planned_at)
   end
 
+  test "prime_week doesn't duplicate time-block entries across visits",
+       %{conn: conn, user: user} do
+    alias Electricbrain.TimeBlocks.Availability
+    alias Electricbrain.TimeBlocks.TimeBlock
+
+    inbox = Categories.inbox_for(user)
+
+    {:ok, block} =
+      TimeBlock
+      |> Ash.Changeset.for_create(
+        :create,
+        %{title: "Sleep", category_id: inbox.id},
+        actor: user
+      )
+      |> Ash.create()
+
+    {:ok, _} =
+      Availability
+      |> Ash.Changeset.for_create(
+        :create,
+        %{
+          time_block_id: block.id,
+          day_of_week: 1,
+          start_time: ~T[22:00:00],
+          end_time: ~T[23:30:00]
+        },
+        actor: user
+      )
+      |> Ash.create()
+
+    {:ok, _, _} = live(conn, ~p"/plan")
+    count_after_first = Enum.count(Ash.read!(Entry, actor: user), &(&1.time_block_id == block.id))
+
+    {:ok, _, _} = live(conn, ~p"/plan")
+
+    count_after_second =
+      Enum.count(Ash.read!(Entry, actor: user), &(&1.time_block_id == block.id))
+
+    {:ok, _, _} = live(conn, ~p"/plan")
+    count_after_third = Enum.count(Ash.read!(Entry, actor: user), &(&1.time_block_id == block.id))
+
+    assert count_after_first == 1
+    assert count_after_second == 1
+    assert count_after_third == 1
+  end
+
   test "prime_week is idempotent — second visit doesn't double up",
        %{conn: conn, user: user, todo: todo} do
     monday = today_monday(user)
