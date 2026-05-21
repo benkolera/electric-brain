@@ -176,7 +176,7 @@ defmodule ElectricbrainWeb.TodoLive.Schedule do
       </div>
 
       <div>
-        <h1 class="font-display text-3xl font-bold tracking-tight text-secondary drop-shadow-[0_0_12px_var(--color-secondary)]">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-secondary">
           {@todo.title}
         </h1>
         <p class="text-sm text-neutral-content/70">

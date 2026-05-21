@@ -91,7 +91,7 @@ defmodule ElectricbrainWeb.MomentLive.New do
           <.link navigate={~p"/moments"} class="text-xs text-neutral-content/60 hover:underline">
             ← Moments
           </.link>
-          <h1 class="font-display text-3xl font-bold tracking-tight text-accent drop-shadow-[0_0_12px_var(--color-accent)]">
+          <h1 class="font-display text-3xl font-bold tracking-tight text-accent">
             Pause
           </h1>
           <p class="text-sm text-neutral-content/70">

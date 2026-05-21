@@ -39,6 +39,15 @@ const CALENDARS = Object.fromEntries(
   }])
 )
 
+// Pick dark/light from the user's resolved theme. Explicit data-theme wins;
+// otherwise fall back to the OS preference (the same source daisyUI is using).
+function detectIsDark() {
+  const explicit = document.documentElement.dataset.theme
+  if (explicit === 'electricbrain-dark') return true
+  if (explicit === 'electricbrain-light') return false
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
 const PlannerCalendar = {
   mounted() {
     this.timezone = this.el.dataset.timezone || 'UTC'
@@ -48,7 +57,7 @@ const PlannerCalendar = {
       {
         views: [createViewWeek()],
         defaultView: 'week',
-        isDark: true,
+        isDark: detectIsDark(),
         timezone: this.timezone,
         weekOptions: { gridHeight: 700 },
         calendars: CALENDARS,
@@ -81,6 +90,23 @@ const PlannerCalendar = {
     this.handleEvent('planner:set_date', ({ date }) => {
       this.calendar.setView('week', Temporal.PlainDate.from(date))
     })
+
+    // Re-sync the calendar theme whenever the resolved theme could change:
+    //   - OS preference flips (sunrise/sunset auto-switch)
+    //   - User toggles theme in Settings (mutates <html data-theme>)
+    // The calendar element uses phx-update="ignore", so we update via setTheme.
+    this.applyTheme = () => {
+      this.calendar.setTheme(detectIsDark() ? 'dark' : 'light')
+    }
+
+    this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    this.mediaQuery.addEventListener('change', this.applyTheme)
+
+    this.themeObserver = new MutationObserver(this.applyTheme)
+    this.themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    })
   },
 
   readEvents() {
@@ -103,6 +129,12 @@ const PlannerCalendar = {
   },
 
   destroyed() {
+    if (this.mediaQuery && this.applyTheme) {
+      this.mediaQuery.removeEventListener('change', this.applyTheme)
+    }
+    if (this.themeObserver) {
+      this.themeObserver.disconnect()
+    }
     if (this.calendar) {
       // Schedule-X currently has no public destroy; rely on phx-update="ignore"
       this.calendar = null

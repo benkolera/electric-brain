@@ -1,21 +1,21 @@
 {
-  "name": "Electric Brain",
-  "short_name": "Brain",
-  "description": "Second brain for balance across life areas — habits, todos, planner, metrics, mindful moments.",
+  "name": "Trellis",
+  "short_name": "Trellis",
+  "description": "A weekly planning practice built around balance across life areas — habits, todos, planner, metrics, mindful moments.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#22d3ee",
+  "background_color": "#1d1612",
+  "theme_color": "#e8a07c",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/images/brain-logo-256.png",
+      "src": "/images/trellis-logo-256.png",
       "sizes": "256x256",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/brain-logo-256.png",
+      "src": "/images/trellis-logo-256.png",
       "sizes": "256x256",
       "type": "image/png",
       "purpose": "maskable"

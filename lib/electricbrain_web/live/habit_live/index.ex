@@ -338,7 +338,7 @@ defmodule ElectricbrainWeb.HabitLive.Index do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
       <div>
-        <h1 class="font-display text-3xl font-bold tracking-tight text-success drop-shadow-[0_0_12px_var(--color-success)]">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-success">
           Habits
         </h1>
         <p class="text-sm text-neutral-content/70">

@@ -43,7 +43,7 @@ defmodule ElectricbrainWeb.NoteLive.Show do
 
       <article class="space-y-6">
         <header>
-          <h1 class="text-4xl font-bold tracking-tight text-primary drop-shadow-[0_0_12px_var(--color-primary)]">
+          <h1 class="text-4xl font-bold tracking-tight text-primary">
             {@note.title}
           </h1>
           <p class="text-xs text-neutral-content/60">

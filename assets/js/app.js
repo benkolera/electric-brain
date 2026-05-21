@@ -18,10 +18,10 @@
 // To load it, simply add a second `<link>` to your `root.html.heex` file.
 
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
-import "@fontsource/space-grotesk/400.css"
-import "@fontsource/space-grotesk/500.css"
-import "@fontsource/space-grotesk/600.css"
-import "@fontsource/space-grotesk/700.css"
+import "@fontsource/fraunces/400.css"
+import "@fontsource/fraunces/500.css"
+import "@fontsource/fraunces/600.css"
+import "@fontsource/fraunces/700.css"
 import "phoenix_html"
 // Establish Phoenix Socket and LiveView configuration.
 import {Socket} from "phoenix"

@@ -227,7 +227,7 @@ defmodule ElectricbrainWeb.HomeLive do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
       <div>
-        <h1 class="font-display text-3xl font-bold tracking-tight text-primary drop-shadow-[0_0_12px_var(--color-primary)]">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-primary">
           Today
         </h1>
         <p class="text-sm text-neutral-content/70">{format_today(@tz)}</p>
@@ -262,10 +262,16 @@ defmodule ElectricbrainWeb.HomeLive do
     <div class="card bg-base-200 border border-base-300">
       <div class="card-body space-y-4">
         <div>
-          <h2 class="card-title text-2xl">Welcome to Electric Brain</h2>
+          <h2 class="card-title text-2xl">Welcome to Trellis</h2>
           <p class="text-sm text-neutral-content/80 mt-1">
-            A second brain built around <em>balance across life areas</em>, not throughput.
-            The heart is a Sunday planning ritual: look back, place the week ahead onto
+            A trellis is the wooden frame a vine grows up — it doesn't make the
+            plant grow, it just gives growth somewhere to attach. The categories
+            you keep, the habits you commit to, and the weekly ritual are your
+            trellis. The app is the structure; you are the gardener.
+          </p>
+          <p class="text-sm text-neutral-content/80 mt-2">
+            A weekly planning practice built around <em>balance across life areas</em>, not throughput.
+            The heart is a Sunday ritual: look back, place the week ahead onto
             the calendar, sync to Google, live the plan.
           </p>
         </div>

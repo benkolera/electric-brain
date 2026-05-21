@@ -1,12 +1,22 @@
-# Welcome to Electric Brain
+# Welcome to Trellis
 
-A second brain built around **balance across life areas**, not throughput.
-The north-star use case is a **Sunday planning ritual**: look at the week
-behind, place habits and todos onto the week ahead, sync to your Google
-Calendar, then live the plan.
+A weekly planning practice built around **balance across life areas**,
+not throughput. The north-star use case is a **Sunday planning ritual**:
+look at the week behind, place habits and todos onto the week ahead,
+sync to your Google Calendar, then live the plan.
 
 This guide walks through the concepts and how the pieces link together.
 If you skim one thing, read the next section.
+
+## Why "Trellis"?
+
+A trellis is the wooden frame a vine grows up. It doesn't make the plant
+grow — it just gives growth somewhere to attach. The categories you
+keep, the habits you commit to, and the weekly ritual itself are the
+trellis. Your life is what grows up through it: not faster, not more,
+but with better support, in the directions you actually care about.
+
+The app is the trellis. You are the gardener.
 
 ## Philosophy
 

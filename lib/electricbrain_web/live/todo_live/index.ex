@@ -116,7 +116,7 @@ defmodule ElectricbrainWeb.TodoLive.Index do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
       <div>
-        <h1 class="font-display text-3xl font-bold tracking-tight text-secondary drop-shadow-[0_0_12px_var(--color-secondary)]">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-secondary">
           Todos
         </h1>
         <p class="text-sm text-neutral-content/70">

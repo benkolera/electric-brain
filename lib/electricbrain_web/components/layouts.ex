@@ -9,6 +9,14 @@ defmodule ElectricbrainWeb.Layouts do
 
   embed_templates "layouts/*"
 
+  @doc """
+  Returns the `data-theme` value for the current user, or `false` to omit the
+  attribute (which lets daisyUI's `prefersdark` follow the OS preference).
+  """
+  def theme_attr(%{theme_preference: :light}), do: "electricbrain-light"
+  def theme_attr(%{theme_preference: :dark}), do: "electricbrain-dark"
+  def theme_attr(_), do: false
+
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_user, :map, default: nil
   attr :now_agenda, :map, default: %{current: [], next: nil}
@@ -35,12 +43,12 @@ defmodule ElectricbrainWeb.Layouts do
         <div class="flex-1">
           <a href="/" class="flex items-center gap-2 group">
             <img
-              src={~p"/images/brain-logo-256.png"}
-              alt="Electric Brain"
-              class="size-9 rounded-lg group-hover:drop-shadow-[0_0_12px_var(--color-primary)] transition"
+              src={~p"/images/trellis-logo-256.png"}
+              alt="Trellis"
+              class="size-9 transition"
             />
-            <span class="font-display text-lg font-bold tracking-tight text-primary group-hover:drop-shadow-[0_0_8px_var(--color-primary)] transition">
-              Electric Brain
+            <span class="font-display text-lg font-bold tracking-tight text-primary transition">
+              Trellis
             </span>
           </a>
         </div>
@@ -89,7 +97,7 @@ defmodule ElectricbrainWeb.Layouts do
       <.link
         :if={@current_user && @show_pause_fab}
         navigate={~p"/moments/new"}
-        class="fixed bottom-5 right-5 z-30 btn btn-accent btn-circle shadow-lg drop-shadow-[0_0_12px_var(--color-accent)] size-14"
+        class="fixed bottom-5 right-5 z-30 btn btn-accent btn-circle shadow-lg size-14"
         title="Pause — sit with a craving, urge or feeling"
         aria-label="Pause"
       >

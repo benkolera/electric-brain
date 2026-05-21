@@ -1,4 +1,4 @@
-// Minimal service worker for Electric Brain — just handles web push.
+// Minimal service worker for Trellis — just handles web push.
 // Caching/offline support is not in scope for v1.
 
 self.addEventListener('install', (event) => {
@@ -13,7 +13,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('push', (event) => {
   // Payload arrives as JSON `{title, body, url}`. Fall back gracefully if
   // the server pushes a plain string or nothing.
-  let title = 'Electric Brain'
+  let title = 'Trellis'
   let body = ''
   let url = '/'
 
@@ -31,10 +31,10 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      icon: '/images/brain-logo-256.png',
-      badge: '/images/brain-logo-256.png',
+      icon: '/images/trellis-logo-256.png',
+      badge: '/images/trellis-logo-256.png',
       data: { url },
-      tag: 'electricbrain',
+      tag: 'trellis',
       renotify: false
     })
   )

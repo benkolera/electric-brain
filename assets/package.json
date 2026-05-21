@@ -11,6 +11,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@fontsource/fraunces": "^5.2.9",
     "@fontsource/space-grotesk": "^5.2.10",
     "@schedule-x/calendar": "~3.7.3",
     "@schedule-x/drag-and-drop": "~3.7.3",

@@ -36,11 +36,11 @@ defmodule ElectricbrainWeb.HelpLive do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
       <div>
-        <h1 class="font-display text-3xl font-bold tracking-tight text-primary drop-shadow-[0_0_12px_var(--color-primary)]">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-primary">
           Help
         </h1>
         <p class="text-sm text-neutral-content/70">
-          How Electric Brain is meant to be used, and how the pieces link.
+          How Trellis is meant to be used, and how the pieces link.
         </p>
       </div>
 

@@ -126,7 +126,7 @@ defmodule ElectricbrainWeb.TimeBlockLive.Edit do
       </div>
 
       <div>
-        <h1 class="font-display text-3xl font-bold tracking-tight text-accent drop-shadow-[0_0_12px_var(--color-accent)]">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-accent">
           {@block.title}
         </h1>
       </div>

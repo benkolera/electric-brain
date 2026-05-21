@@ -78,6 +78,10 @@ defmodule Electricbrain.Accounts.User do
       accept [:timezone]
     end
 
+    update :set_theme_preference do
+      accept [:theme_preference]
+    end
+
     update :connect_google do
       description "Stores Google OAuth tokens after a successful OAuth callback"
 
@@ -133,6 +137,10 @@ defmodule Electricbrain.Accounts.User do
       authorize_if expr(id == ^actor(:id))
     end
 
+    policy action(:set_theme_preference) do
+      authorize_if expr(id == ^actor(:id))
+    end
+
     policy action([:connect_google, :refresh_google_tokens, :disconnect_google]) do
       authorize_if expr(id == ^actor(:id))
     end
@@ -169,6 +177,13 @@ defmodule Electricbrain.Accounts.User do
     attribute :timezone, :string do
       allow_nil? false
       default "Etc/UTC"
+      public? true
+    end
+
+    attribute :theme_preference, :atom do
+      allow_nil? false
+      default :system
+      constraints one_of: [:system, :light, :dark]
       public? true
     end
 

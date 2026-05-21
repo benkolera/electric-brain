@@ -202,7 +202,7 @@ defmodule ElectricbrainWeb.MetricLive.Show do
           <.link navigate={~p"/metrics"} class="text-xs text-neutral-content/60 hover:underline">
             ← All metrics
           </.link>
-          <h1 class="font-display text-3xl font-bold tracking-tight text-accent drop-shadow-[0_0_12px_var(--color-accent)]">
+          <h1 class="font-display text-3xl font-bold tracking-tight text-accent">
             {@metric.name}
           </h1>
           <p class="text-sm text-neutral-content/70 flex flex-wrap items-center gap-2">

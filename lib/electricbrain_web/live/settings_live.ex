@@ -115,12 +115,28 @@ defmodule ElectricbrainWeb.SettingsLive do
     {:noreply, socket}
   end
 
+  def handle_event("set_theme", %{"preference" => pref}, socket)
+      when pref in ["system", "light", "dark"] do
+    user = socket.assigns.current_user
+
+    updated =
+      user
+      |> Ash.Changeset.for_update(
+        :set_theme_preference,
+        %{theme_preference: String.to_existing_atom(pref)},
+        actor: user
+      )
+      |> Ash.update!()
+
+    {:noreply, assign(socket, :current_user, updated)}
+  end
+
   def handle_event("test_push", _params, socket) do
     user = socket.assigns.current_user
 
     count =
       Push.send_to_user(user, %{
-        title: "Electric Brain",
+        title: "Trellis",
         body: "Test notification — you're set up.",
         url: "/"
       })
@@ -150,7 +166,7 @@ defmodule ElectricbrainWeb.SettingsLive do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
       <div>
-        <h1 class="font-display text-3xl font-bold tracking-tight text-primary drop-shadow-[0_0_12px_var(--color-primary)]">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-primary">
           Settings
         </h1>
         <p class="text-sm text-neutral-content/70">
@@ -271,6 +287,33 @@ defmodule ElectricbrainWeb.SettingsLive do
               <% end %>
             </ul>
           <% end %>
+        </div>
+      </div>
+
+      <div class="card bg-base-200 border border-base-300">
+        <div class="card-body">
+          <h2 class="card-title">Theme</h2>
+          <p class="text-sm text-neutral-content/70">
+            Follow your device, or pin a single theme. The page updates as soon as you choose.
+          </p>
+          <div class="join mt-2">
+            <%= for {value, label} <- [{"system", "System"}, {"light", "Light"}, {"dark", "Dark"}] do %>
+              <button
+                type="button"
+                phx-click="set_theme"
+                phx-value-preference={value}
+                class={[
+                  "join-item btn btn-sm",
+                  if(to_string(@current_user.theme_preference) == value,
+                    do: "btn-primary",
+                    else: "btn-ghost"
+                  )
+                ]}
+              >
+                {label}
+              </button>
+            <% end %>
+          </div>
         </div>
       </div>
 

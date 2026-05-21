@@ -1,9 +1,18 @@
-# Electric Brain
+# Trellis
 
-A second-brain app organised around **balance across life areas**, not
-throughput. The north-star use case is a Sunday planning ritual: look
-at the week behind, place habits and todos onto the week ahead, sync
-the result to Google Calendar, then live the plan.
+A weekly planning practice organised around **balance across life
+areas**, not throughput. The north-star use case is a Sunday planning
+ritual: look at the week behind, place habits and todos onto the week
+ahead, sync the result to Google Calendar, then live the plan.
+
+## Why "Trellis"?
+
+A trellis is the wooden frame a vine grows up. It doesn't make the
+plant grow — it just gives growth somewhere to attach. The categories
+you keep, the habits you commit to, and the weekly ritual itself are
+the trellis. Your life is what grows up through it: not faster, not
+more, but with better support, in the directions you actually care
+about. The app is the trellis; you are the gardener.
 
 Phoenix 1.8 + LiveView + [Ash], Postgres + AshPostgres, Tailwind v4.
 Single Phoenix app — no umbrella. Deployed as half of the

@@ -15,7 +15,7 @@ defmodule ElectricbrainWeb.HomeLiveTest do
   test "shows the welcome block for a brand-new user", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/")
 
-    assert html =~ "Welcome to Electric Brain"
+    assert html =~ "Welcome to Trellis"
     assert html =~ "Get set up"
     assert html =~ "Edit the category tree"
   end

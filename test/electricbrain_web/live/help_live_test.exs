@@ -11,7 +11,7 @@ defmodule ElectricbrainWeb.HelpLiveTest do
   test "renders the help markdown", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/help")
 
-    assert html =~ "Welcome to Electric Brain"
+    assert html =~ "Welcome to Trellis"
     assert html =~ "Philosophy"
     assert html =~ "How they link together"
   end

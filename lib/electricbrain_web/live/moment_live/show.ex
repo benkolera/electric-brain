@@ -59,7 +59,7 @@ defmodule ElectricbrainWeb.MomentLive.Show do
             ← Moments
           </.link>
           <div class="flex items-baseline gap-3 mt-1 flex-wrap">
-            <h1 class="font-display text-3xl font-bold tracking-tight text-accent drop-shadow-[0_0_12px_var(--color-accent)]">
+            <h1 class="font-display text-3xl font-bold tracking-tight text-accent">
               {@moment.name}
             </h1>
             <span class={["badge", kind_color(@moment.kind)]}>
