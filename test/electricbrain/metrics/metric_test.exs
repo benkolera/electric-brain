@@ -22,7 +22,7 @@ defmodule Electricbrain.Metrics.MetricTest do
       assert metric.user_id == user.id
     end
 
-    test "accepts :sum aggregation and a group_name" do
+    test "accepts :sum aggregation and a group_name (period required)" do
       user = create_user!()
 
       assert {:ok, metric} =
@@ -30,17 +30,19 @@ defmodule Electricbrain.Metrics.MetricTest do
                |> Ash.Changeset.for_create(
                  :create,
                  %{
-                   name: "Deadlift 1RM",
-                   unit: "kg",
+                   name: "Water",
+                   unit: "L",
                    aggregation: :sum,
-                   group_name: "Deadlift"
+                   period: :day,
+                   group_name: "Hydration"
                  },
                  actor: user
                )
                |> Ash.create()
 
       assert metric.aggregation == :sum
-      assert metric.group_name == "Deadlift"
+      assert metric.period == :day
+      assert metric.group_name == "Hydration"
     end
 
     test "requires name and unit" do
@@ -54,6 +56,78 @@ defmodule Electricbrain.Metrics.MetricTest do
       assert {:error, _} =
                Metric
                |> Ash.Changeset.for_create(:create, %{name: "Weight"}, actor: user)
+               |> Ash.create()
+    end
+
+    test ":sum aggregation requires a period" do
+      user = create_user!()
+
+      assert {:error, _} =
+               Metric
+               |> Ash.Changeset.for_create(
+                 :create,
+                 %{name: "Water", unit: "L", aggregation: :sum},
+                 actor: user
+               )
+               |> Ash.create()
+
+      assert {:ok, _} =
+               Metric
+               |> Ash.Changeset.for_create(
+                 :create,
+                 %{name: "Water", unit: "L", aggregation: :sum, period: :day},
+                 actor: user
+               )
+               |> Ash.create()
+    end
+
+    test "goal_kind and goal_value must be set together" do
+      user = create_user!()
+
+      assert {:error, _} =
+               Metric
+               |> Ash.Changeset.for_create(
+                 :create,
+                 %{
+                   name: "Weight",
+                   unit: "kg",
+                   period: :day,
+                   goal_kind: :at_least
+                 },
+                 actor: user
+               )
+               |> Ash.create()
+
+      assert {:error, _} =
+               Metric
+               |> Ash.Changeset.for_create(
+                 :create,
+                 %{
+                   name: "Weight",
+                   unit: "kg",
+                   period: :day,
+                   goal_value: Decimal.new("80")
+                 },
+                 actor: user
+               )
+               |> Ash.create()
+    end
+
+    test "a configured goal requires a period" do
+      user = create_user!()
+
+      assert {:error, _} =
+               Metric
+               |> Ash.Changeset.for_create(
+                 :create,
+                 %{
+                   name: "Weight",
+                   unit: "kg",
+                   goal_kind: :at_most,
+                   goal_value: Decimal.new("80")
+                 },
+                 actor: user
+               )
                |> Ash.create()
     end
 
