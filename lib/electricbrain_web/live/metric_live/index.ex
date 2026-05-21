@@ -4,6 +4,7 @@ defmodule ElectricbrainWeb.MetricLive.Index do
   require Ash.Query
 
   alias Electricbrain.Metrics.Metric
+  alias Electricbrain.Metrics.Status
   alias ElectricbrainWeb.CategoryPicker
 
   @impl true
@@ -29,6 +30,7 @@ defmodule ElectricbrainWeb.MetricLive.Index do
   defp list_metrics(user) do
     Metric
     |> Ash.Query.sort(group_name: :asc, name: :asc)
+    |> Ash.Query.load(:measurements)
     |> Ash.read!(actor: user)
   end
 
@@ -174,6 +176,62 @@ defmodule ElectricbrainWeb.MetricLive.Index do
               </div>
 
               <div>
+                <label class="label">
+                  <span class="label-text text-xs">Period (bucket size)</span>
+                </label>
+                <select
+                  name={@form[:period].name}
+                  class="select select-bordered bg-base-100 w-full"
+                >
+                  <option value="" selected={@form[:period].value in [nil, ""]}>(none)</option>
+                  <option value="day" selected={@form[:period].value in [:day, "day"]}>
+                    per day
+                  </option>
+                  <option value="week" selected={@form[:period].value in [:week, "week"]}>
+                    per week
+                  </option>
+                  <option value="month" selected={@form[:period].value in [:month, "month"]}>
+                    per month
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label class="label">
+                  <span class="label-text text-xs">Goal direction (optional)</span>
+                </label>
+                <select
+                  name={@form[:goal_kind].name}
+                  class="select select-bordered bg-base-100 w-full"
+                >
+                  <option value="" selected={@form[:goal_kind].value in [nil, ""]}>(no goal)</option>
+                  <option
+                    value="at_least"
+                    selected={@form[:goal_kind].value in [:at_least, "at_least"]}
+                  >
+                    at least
+                  </option>
+                  <option value="at_most" selected={@form[:goal_kind].value in [:at_most, "at_most"]}>
+                    at most
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label class="label">
+                  <span class="label-text text-xs">Goal value</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  name={@form[:goal_value].name}
+                  value={Phoenix.HTML.Form.normalize_value("number", @form[:goal_value].value)}
+                  class="input input-bordered w-full bg-base-100"
+                  autocomplete="off"
+                />
+              </div>
+
+              <div class="sm:col-span-2">
                 <label class="label"><span class="label-text text-xs">Category</span></label>
                 <CategoryPicker.picker
                   categories={@categories}
@@ -213,6 +271,13 @@ defmodule ElectricbrainWeb.MetricLive.Index do
                         {m.unit} · {aggregation_label(m.aggregation)}
                       </p>
                     </div>
+                    <%= case Status.status(m, m.measurements, @current_user.timezone) do %>
+                      <% :on_track -> %>
+                        <span class="badge badge-success badge-sm">On track</span>
+                      <% :off_track -> %>
+                        <span class="badge badge-error badge-sm">Off track</span>
+                      <% :no_goal -> %>
+                    <% end %>
                     <button
                       phx-click="delete"
                       phx-value-id={m.id}

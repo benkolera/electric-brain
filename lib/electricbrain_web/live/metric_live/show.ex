@@ -3,8 +3,10 @@ defmodule ElectricbrainWeb.MetricLive.Show do
 
   require Ash.Query
 
+  alias Electricbrain.Metrics.Chart
   alias Electricbrain.Metrics.Measurement
   alias Electricbrain.Metrics.Metric
+  alias Electricbrain.Metrics.Status
   alias ElectricbrainWeb.CategoryPicker
 
   @impl true
@@ -141,28 +143,48 @@ defmodule ElectricbrainWeb.MetricLive.Show do
     metric = socket.assigns.metric
 
     points =
-      metric.measurements
-      |> Enum.map(fn m ->
-        %{
-          t: DateTime.to_iso8601(m.recorded_at),
-          v: Decimal.to_float(m.value)
-        }
+      metric
+      |> Chart.points(metric.measurements, tz)
+      |> Enum.map(fn %{t: t, v: v} ->
+        %{t: DateTime.to_iso8601(t), v: Decimal.to_float(v)}
       end)
+
+    goal =
+      if metric.goal_kind do
+        %{kind: metric.goal_kind, value: Decimal.to_float(metric.goal_value)}
+      end
 
     chart =
       %{
         label: metric.name,
         unit: metric.unit,
         aggregation: metric.aggregation,
+        period: metric.period,
         timezone: tz,
-        points: points
+        points: points,
+        goal: goal
       }
 
-    assign(socket, :chart, chart)
+    socket
+    |> assign(:chart, chart)
+    |> assign(:status, Status.status(metric, metric.measurements, tz))
   end
 
   defp format_recorded_at(dt, tz) do
     dt |> DateTime.shift_zone!(tz || "Etc/UTC") |> Calendar.strftime("%Y-%m-%d %H:%M")
+  end
+
+  defp period_label(:day), do: "day"
+  defp period_label(:week), do: "week"
+  defp period_label(:month), do: "month"
+  defp period_label(_), do: nil
+
+  defp goal_summary(%{goal_kind: nil}), do: nil
+
+  defp goal_summary(%{goal_kind: kind, goal_value: value, unit: unit, period: period}) do
+    arrow = if kind == :at_least, do: "≥", else: "≤"
+    per = if period, do: " / #{period_label(period)}", else: ""
+    "#{arrow} #{value} #{unit}#{per}"
   end
 
   defp now_local_input(tz) do
@@ -183,11 +205,23 @@ defmodule ElectricbrainWeb.MetricLive.Show do
           <h1 class="font-display text-3xl font-bold tracking-tight text-accent drop-shadow-[0_0_12px_var(--color-accent)]">
             {@metric.name}
           </h1>
-          <p class="text-sm text-neutral-content/70">
-            {@metric.unit} · {if(@metric.aggregation == :sum,
-              do: "summed per period",
-              else: "latest value wins"
-            )}
+          <p class="text-sm text-neutral-content/70 flex flex-wrap items-center gap-2">
+            <span>
+              {@metric.unit} · {if(@metric.aggregation == :sum,
+                do: "summed per " <> (period_label(@metric.period) || "period"),
+                else: "latest value wins"
+              )}
+            </span>
+            <%= if summary = goal_summary(@metric) do %>
+              <span class="badge badge-outline badge-sm">{summary}</span>
+            <% end %>
+            <%= case @status do %>
+              <% :on_track -> %>
+                <span class="badge badge-success badge-sm">On track</span>
+              <% :off_track -> %>
+                <span class="badge badge-error badge-sm">Off track</span>
+              <% :no_goal -> %>
+            <% end %>
           </p>
         </div>
       </div>
@@ -339,6 +373,66 @@ defmodule ElectricbrainWeb.MetricLive.Show do
                   type="text"
                   name={@edit_form[:group_name].name}
                   value={Phoenix.HTML.Form.normalize_value("text", @edit_form[:group_name].value)}
+                  class="input input-bordered w-full bg-base-100"
+                  autocomplete="off"
+                />
+              </div>
+              <div>
+                <label class="label">
+                  <span class="label-text text-xs">Period (bucket size)</span>
+                </label>
+                <select
+                  name={@edit_form[:period].name}
+                  class="select select-bordered bg-base-100 w-full"
+                >
+                  <option value="" selected={@edit_form[:period].value in [nil, ""]}>
+                    (none)
+                  </option>
+                  <option value="day" selected={@edit_form[:period].value in [:day, "day"]}>
+                    per day
+                  </option>
+                  <option value="week" selected={@edit_form[:period].value in [:week, "week"]}>
+                    per week
+                  </option>
+                  <option value="month" selected={@edit_form[:period].value in [:month, "month"]}>
+                    per month
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label class="label">
+                  <span class="label-text text-xs">Goal direction (optional)</span>
+                </label>
+                <select
+                  name={@edit_form[:goal_kind].name}
+                  class="select select-bordered bg-base-100 w-full"
+                >
+                  <option value="" selected={@edit_form[:goal_kind].value in [nil, ""]}>
+                    (no goal)
+                  </option>
+                  <option
+                    value="at_least"
+                    selected={@edit_form[:goal_kind].value in [:at_least, "at_least"]}
+                  >
+                    at least
+                  </option>
+                  <option
+                    value="at_most"
+                    selected={@edit_form[:goal_kind].value in [:at_most, "at_most"]}
+                  >
+                    at most
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label class="label">
+                  <span class="label-text text-xs">Goal value ({@metric.unit})</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  name={@edit_form[:goal_value].name}
+                  value={Phoenix.HTML.Form.normalize_value("number", @edit_form[:goal_value].value)}
                   class="input input-bordered w-full bg-base-100"
                   autocomplete="off"
                 />

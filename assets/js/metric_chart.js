@@ -1,34 +1,52 @@
-// Chart.js line chart for a single Metric. The LiveView injects the data
-// as `data-chart` JSON: `{label, unit, aggregation, timezone, points}`,
-// where each point is `{t: iso8601, v: number}`. For :sum metrics we
-// bucket points into daily totals; for :point we plot raw values.
+// Chart.js line chart for a single Metric. The LiveView injects:
+//
+//   {label, unit, aggregation, period, timezone, points, goal}
+//
+// `points` is already bucketed server-side (`Electricbrain.Metrics.Chart`)
+// — each entry is `{t: iso8601, v: number}` and is plotted as-is. When
+// `goal` is set (`{kind: "at_least"|"at_most", value: number}`), we
+// overlay a horizontal "yellow brick road" line at `goal.value`.
 import { Chart, registerables } from 'chart.js'
 import 'chartjs-adapter-date-fns'
 
 Chart.register(...registerables)
 
-const dayKey = (iso) => {
-  // Bucket by UTC date; the timezone-aware bucketing happens server-side
-  // for the cases that need it (Phase 3). Sufficient for v1 single-user app.
-  const d = new Date(iso)
-  d.setUTCHours(0, 0, 0, 0)
-  return d.toISOString()
-}
-
-const bucketSum = (points) => {
-  const buckets = new Map()
-  for (const p of points) {
-    const key = dayKey(p.t)
-    buckets.set(key, (buckets.get(key) || 0) + p.v)
-  }
-  return Array.from(buckets, ([t, v]) => ({ x: new Date(t), y: v }))
-    .sort((a, b) => a.x - b.x)
-}
-
-const rawPoints = (points) =>
+const toPlotPoints = (points) =>
   points
     .map((p) => ({ x: new Date(p.t), y: p.v }))
     .sort((a, b) => a.x - b.x)
+
+const periodTimeUnit = (period) => {
+  switch (period) {
+    case 'week': return 'week'
+    case 'month': return 'month'
+    default: return 'day'
+  }
+}
+
+const goalDataset = (goal, points) => {
+  if (!goal || points.length === 0) return null
+
+  // Flat road: same y at every x in the visible range, plus a small
+  // forward extension so it always reaches the right edge of the chart.
+  const xs = points.map((p) => p.x.getTime())
+  const min = new Date(Math.min(...xs))
+  const max = new Date(Math.max(...xs) + 24 * 60 * 60 * 1000)
+
+  return {
+    label: `Goal (${goal.kind === 'at_least' ? '≥' : '≤'} ${goal.value})`,
+    data: [
+      { x: min, y: goal.value },
+      { x: max, y: goal.value }
+    ],
+    borderColor: '#facc15',
+    borderDash: [6, 4],
+    borderWidth: 2,
+    pointRadius: 0,
+    fill: false,
+    tension: 0
+  }
+}
 
 const MetricChart = {
   mounted() {
@@ -52,36 +70,37 @@ const MetricChart = {
 
   render() {
     const cfg = JSON.parse(this.el.dataset.chart)
-    const data =
-      cfg.aggregation === 'sum' ? bucketSum(cfg.points) : rawPoints(cfg.points)
+    const data = toPlotPoints(cfg.points)
 
-    // Clear any previous canvas (phx-update="ignore" stops LV from doing it)
     this.el.replaceChildren()
     const canvas = document.createElement('canvas')
     this.el.appendChild(canvas)
 
+    const datasets = [
+      {
+        label: `${cfg.label} (${cfg.unit})`,
+        data,
+        borderColor: '#22d3ee',
+        backgroundColor: 'rgba(34, 211, 238, 0.15)',
+        tension: 0.2,
+        pointRadius: 3,
+        fill: cfg.aggregation === 'sum'
+      }
+    ]
+
+    const road = goalDataset(cfg.goal, data)
+    if (road) datasets.push(road)
+
     this.chart = new Chart(canvas, {
       type: 'line',
-      data: {
-        datasets: [
-          {
-            label: `${cfg.label} (${cfg.unit})`,
-            data,
-            borderColor: '#22d3ee',
-            backgroundColor: 'rgba(34, 211, 238, 0.15)',
-            tension: 0.2,
-            pointRadius: 3,
-            fill: cfg.aggregation === 'sum'
-          }
-        ]
-      },
+      data: { datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
           x: {
             type: 'time',
-            time: { unit: 'day' },
+            time: { unit: periodTimeUnit(cfg.period) },
             ticks: { color: '#94a3b8' },
             grid: { color: 'rgba(148, 163, 184, 0.1)' }
           },

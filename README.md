@@ -47,7 +47,10 @@ Single Phoenix app — no umbrella. Deployed as half of the
   (Deadlift 1RM/3RM/8RM). Measurements can be entered manually
   (with backfill) or captured at habit completion — attach metrics
   to a habit, complete it, and a prompt asks for each value before
-  the completion finalises.
+  the completion finalises. Each metric can carry a flat
+  "yellow brick road" goal (`at_least` / `at_most` × a value per
+  day/week/month); the chart overlays the road line and an on-track /
+  off-track pill shows the current bucket's standing.
 - **Google Calendar push** — one-way sync from the planner to the
   user's primary calendar. Idempotent via stored `google_event_id`;
   category colour drives the event colour.
