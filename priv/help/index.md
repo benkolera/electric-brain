@@ -158,6 +158,23 @@ freeform notes. Hard habits got harder? Drop the bar. Too easy?
 Raise it. The review is the metacognitive loop that keeps the
 weekly plan honest.
 
+## Notes — block-composed freeform pages
+
+A **note** has a title and an ordered list of **blocks**. The two
+block kinds today are:
+
+* **Markdown** — write in markdown; the show page renders it.
+* **Sketch** — a touch-friendly drawing pad for quick diagrams.
+
+In the editor, each block has up/down arrows to reorder and a
+trash button to remove it. The buttons below the list add a new
+block of either kind to the end. The plan is to grow more block
+kinds (images, embeds, checklists) over time — the data model
+already supports it.
+
+The list view previews the first markdown block of each note. If
+a note has no markdown, it shows "(sketch)" or nothing.
+
 ## Moments — radical-acceptance pauses
 
 When a craving, urge or strong feeling pulls, hit the **Pause**
@@ -199,7 +216,8 @@ The mental model is a thin one:
   any entry starts.
 * **Google Calendar** is a one-way mirror — the planner pushes to it
   on demand; we never read events back.
-* **Notes** are freeform markdown that also live under a category.
+* **Notes** are freeform pages composed of typed blocks (markdown,
+  sketch, more later).
 * **Moments** sit outside the planning loop entirely — a place to
   pause when the loop itself is what's pulling at you.
 

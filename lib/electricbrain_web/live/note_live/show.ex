@@ -6,26 +6,12 @@ defmodule ElectricbrainWeb.NoteLive.Show do
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     user = socket.assigns.current_user
-    note = Ash.get!(Note, id, actor: user)
+    note = Ash.get!(Note, id, actor: user, load: [:blocks])
 
     {:ok,
      socket
      |> assign(:page_title, note.title)
-     |> assign(:note, note)
-     |> assign(:html, render_markdown(note.body || ""))}
-  end
-
-  defp render_markdown(body) do
-    MDEx.to_html!(body,
-      extension: [
-        strikethrough: true,
-        table: true,
-        autolink: true,
-        tasklist: true,
-        footnotes: true
-      ],
-      render: [unsafe: false]
-    )
+     |> assign(:note, note)}
   end
 
   @impl true
@@ -51,21 +37,44 @@ defmodule ElectricbrainWeb.NoteLive.Show do
           </p>
         </header>
 
-        <%= if @note.drawing do %>
-          <div
-            id={"drawing-view-#{@note.id}"}
-            phx-hook="DrawingView"
-            data-drawing={Jason.encode!(@note.drawing)}
-            class="w-full aspect-[3/2] bg-base-200 border border-base-300 rounded-box"
-          >
-          </div>
+        <%= if @note.blocks == [] do %>
+          <p class="text-sm text-neutral-content/60 italic">
+            This note has no blocks yet — edit to add some.
+          </p>
         <% end %>
 
-        <div class="markdown max-w-none">
-          {Phoenix.HTML.raw(@html)}
-        </div>
+        <%= for block <- @note.blocks do %>
+          {render_block(assigns, block)}
+        <% end %>
       </article>
     </Layouts.app>
+    """
+  end
+
+  defp render_block(assigns, %{kind: :markdown} = block) do
+    assigns = assign(assigns, :html, ElectricbrainWeb.Markdown.to_html(block.data["body"] || ""))
+
+    ~H"""
+    <div class="markdown max-w-none">
+      {Phoenix.HTML.raw(@html)}
+    </div>
+    """
+  end
+
+  defp render_block(assigns, %{kind: :sketch} = block) do
+    assigns =
+      assigns
+      |> assign(:block_id, block.id)
+      |> assign(:drawing_json, Jason.encode!(block.data["drawing"] || %{}))
+
+    ~H"""
+    <div
+      id={"drawing-view-#{@block_id}"}
+      phx-hook="DrawingView"
+      data-drawing={@drawing_json}
+      class="w-full aspect-[3/2] bg-base-200 border border-base-300 rounded-box"
+    >
+    </div>
     """
   end
 end

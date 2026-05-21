@@ -14,12 +14,12 @@ defmodule Electricbrain.Notes.Note do
     defaults [:read, :destroy]
 
     create :create do
-      accept [:title, :body, :drawing]
+      accept [:title]
       change relate_actor(:user)
     end
 
     update :update do
-      accept [:title, :body, :drawing]
+      accept [:title]
       require_atomic? false
     end
   end
@@ -42,21 +42,16 @@ defmodule Electricbrain.Notes.Note do
       public? true
     end
 
-    attribute :body, :string do
-      public? true
-      default ""
-    end
-
-    attribute :drawing, :map do
-      public? true
-    end
-
     timestamps()
   end
 
   relationships do
     belongs_to :user, Electricbrain.Accounts.User do
       allow_nil? false
+    end
+
+    has_many :blocks, Electricbrain.Notes.NoteBlock do
+      sort position: :asc
     end
   end
 end

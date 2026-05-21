@@ -4,5 +4,6 @@ defmodule Electricbrain.Notes do
 
   resources do
     resource Electricbrain.Notes.Note
+    resource Electricbrain.Notes.NoteBlock
   end
 end

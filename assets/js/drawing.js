@@ -109,7 +109,8 @@ const DrawingCanvas = {
     el.addEventListener("pointercancel", end)
     el.addEventListener("pointerleave", (e) => { if (this.current) end(e) })
 
-    const clearBtn = document.getElementById("clear-canvas-btn")
+    const clearSel = el.dataset.clear
+    const clearBtn = clearSel ? document.querySelector(clearSel) : null
     if (clearBtn) {
       this.clearHandler = () => {
         this.state.strokes = []

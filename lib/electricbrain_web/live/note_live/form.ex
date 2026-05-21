@@ -2,6 +2,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
   use ElectricbrainWeb, :live_view
 
   alias Electricbrain.Notes.Note
+  alias Electricbrain.Notes.NoteBlock
 
   @impl true
   def mount(params, _session, socket) do
@@ -9,60 +10,226 @@ defmodule ElectricbrainWeb.NoteLive.Form do
   end
 
   defp apply_action(socket, :new, _params) do
-    form =
-      Note
-      |> AshPhoenix.Form.for_create(:create, actor: socket.assigns.current_user)
-      |> to_form()
-
     socket
     |> assign(:page_title, "New note")
     |> assign(:note, nil)
-    |> assign(:form, form)
-    |> assign(:drawing_json, "null")
+    |> assign(:title, "")
+    |> assign(:blocks, [])
+    |> assign(:errors, [])
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
     user = socket.assigns.current_user
-    note = Ash.get!(Note, id, actor: user)
+    note = Ash.get!(Note, id, actor: user, load: [:blocks])
 
-    form =
-      note
-      |> AshPhoenix.Form.for_update(:update, actor: user)
-      |> to_form()
+    blocks =
+      note.blocks
+      |> Enum.sort_by(& &1.position)
+      |> Enum.map(&db_block_to_socket/1)
 
     socket
     |> assign(:page_title, "Edit note")
     |> assign(:note, note)
-    |> assign(:form, form)
-    |> assign(:drawing_json, Jason.encode!(note.drawing))
+    |> assign(:title, note.title)
+    |> assign(:blocks, blocks)
+    |> assign(:errors, [])
+  end
+
+  defp db_block_to_socket(block) do
+    %{
+      client_id: Ecto.UUID.generate(),
+      server_id: block.id,
+      kind: block.kind,
+      data: block.data,
+      position: block.position
+    }
   end
 
   @impl true
-  def handle_event("validate", %{"form" => params}, socket) do
-    form = AshPhoenix.Form.validate(socket.assigns.form, params)
-    {:noreply, assign(socket, form: to_form(form))}
+  def handle_event("form_action", params, socket) do
+    action = Map.get(params, "_action", "save")
+    socket = merge_params_into_socket(socket, params)
+
+    case action do
+      "save" -> save(socket)
+      "add_block:markdown" -> {:noreply, add_block(socket, :markdown)}
+      "add_block:sketch" -> {:noreply, add_block(socket, :sketch)}
+      "remove_block:" <> cid -> {:noreply, remove_block(socket, cid)}
+      "move_up:" <> cid -> {:noreply, move_block(socket, cid, -1)}
+      "move_down:" <> cid -> {:noreply, move_block(socket, cid, +1)}
+      _ -> {:noreply, socket}
+    end
   end
 
-  @impl true
-  def handle_event("save", %{"form" => params, "drawing" => drawing}, socket) do
-    drawing_map =
-      case Jason.decode(drawing) do
-        {:ok, val} when is_map(val) -> val
-        _ -> nil
+  defp merge_params_into_socket(socket, params) do
+    title = Map.get(params, "title", socket.assigns.title)
+    order = parse_order(Map.get(params, "block_order", ""))
+    submitted = Map.get(params, "blocks", %{})
+
+    existing_by_cid = Map.new(socket.assigns.blocks, &{&1.client_id, &1})
+
+    blocks =
+      order
+      |> Enum.map(fn cid ->
+        existing = Map.get(existing_by_cid, cid)
+        submitted_block = Map.get(submitted, cid, %{})
+        merge_block(existing, submitted_block)
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    socket
+    |> assign(:title, title)
+    |> assign(:blocks, blocks)
+  end
+
+  defp parse_order(""), do: []
+  defp parse_order(order) when is_binary(order), do: String.split(order, ",", trim: true)
+  defp parse_order(_), do: []
+
+  defp merge_block(nil, _), do: nil
+
+  defp merge_block(existing, submitted) do
+    data =
+      case existing.kind do
+        :markdown ->
+          %{"body" => Map.get(submitted, "body", existing.data["body"] || "")}
+
+        :sketch ->
+          drawing =
+            case Jason.decode(Map.get(submitted, "drawing", "")) do
+              {:ok, val} when is_map(val) -> val
+              _ -> existing.data["drawing"] || %{"strokes" => []}
+            end
+
+          %{"drawing" => drawing}
       end
 
-    params = Map.put(params, "drawing", drawing_map)
+    %{existing | data: data}
+  end
 
-    case AshPhoenix.Form.submit(socket.assigns.form, params: params) do
-      {:ok, _note} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Note saved")
-         |> push_navigate(to: ~p"/notes")}
+  defp add_block(socket, kind) do
+    new_block = %{
+      client_id: Ecto.UUID.generate(),
+      server_id: nil,
+      kind: kind,
+      data: default_data(kind),
+      position: length(socket.assigns.blocks)
+    }
 
-      {:error, form} ->
-        {:noreply, assign(socket, form: to_form(form))}
+    assign(socket, :blocks, socket.assigns.blocks ++ [new_block])
+  end
+
+  defp default_data(:markdown), do: %{"body" => ""}
+  defp default_data(:sketch), do: %{"drawing" => %{"strokes" => []}}
+
+  defp remove_block(socket, cid) do
+    blocks = Enum.reject(socket.assigns.blocks, &(&1.client_id == cid))
+    assign(socket, :blocks, blocks)
+  end
+
+  defp move_block(socket, cid, delta) do
+    blocks = socket.assigns.blocks
+    idx = Enum.find_index(blocks, &(&1.client_id == cid))
+    target = if idx, do: idx + delta, else: nil
+
+    cond do
+      is_nil(idx) -> socket
+      target < 0 or target >= length(blocks) -> socket
+      true -> assign(socket, :blocks, swap(blocks, idx, target))
     end
+  end
+
+  defp swap(list, i, j) do
+    a = Enum.at(list, i)
+    b = Enum.at(list, j)
+
+    list
+    |> List.replace_at(i, b)
+    |> List.replace_at(j, a)
+  end
+
+  defp save(socket) do
+    user = socket.assigns.current_user
+    title = String.trim(socket.assigns.title || "")
+
+    cond do
+      title == "" ->
+        {:noreply, assign(socket, :errors, ["Title is required"])}
+
+      true ->
+        case persist(socket, user, title) do
+          {:ok, _note} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Note saved")
+             |> push_navigate(to: ~p"/notes")}
+
+          {:error, messages} ->
+            {:noreply, assign(socket, :errors, messages)}
+        end
+    end
+  end
+
+  defp persist(socket, user, title) do
+    note =
+      case socket.assigns.note do
+        nil ->
+          Note
+          |> Ash.Changeset.for_create(:create, %{title: title}, actor: user)
+          |> Ash.create!()
+
+        existing ->
+          existing
+          |> Ash.Changeset.for_update(:update, %{title: title}, actor: user)
+          |> Ash.update!()
+      end
+
+    blocks = socket.assigns.blocks
+    existing_ids = Enum.flat_map(blocks, &if(&1.server_id, do: [&1.server_id], else: []))
+
+    db_blocks_by_id =
+      case socket.assigns.note do
+        nil ->
+          %{}
+
+        _ ->
+          (socket.assigns.note.blocks || [])
+          |> Map.new(&{&1.id, &1})
+      end
+
+    Enum.each(Map.keys(db_blocks_by_id) -- existing_ids, fn id ->
+      db_blocks_by_id[id] |> Ash.destroy!(actor: user)
+    end)
+
+    blocks
+    |> Enum.with_index()
+    |> Enum.each(fn {block, idx} ->
+      attrs = %{position: idx, kind: block.kind, data: block.data}
+
+      case block.server_id do
+        nil ->
+          NoteBlock
+          |> Ash.Changeset.for_create(:create, Map.put(attrs, :note_id, note.id), actor: user)
+          |> Ash.create!()
+
+        id ->
+          db_blocks_by_id[id]
+          |> Ash.Changeset.for_update(:update, attrs, actor: user)
+          |> Ash.update!()
+      end
+    end)
+
+    {:ok, note}
+  rescue
+    err in Ash.Error.Invalid ->
+      {:error, ash_error_messages(err)}
+  end
+
+  defp ash_error_messages(%Ash.Error.Invalid{errors: errors}) do
+    Enum.map(errors, fn
+      %{message: msg} when is_binary(msg) -> msg
+      err -> inspect(err)
+    end)
   end
 
   @impl true
@@ -75,14 +242,18 @@ defmodule ElectricbrainWeb.NoteLive.Form do
 
       <h1 class="font-display text-3xl font-bold tracking-tight text-primary">{@page_title}</h1>
 
-      <.form
-        for={@form}
-        id="note-form"
-        phx-change="validate"
-        phx-submit="save"
-        class="space-y-6"
-      >
-        <input type="hidden" name="drawing" id="drawing-input" value={@drawing_json} />
+      <%= if @errors != [] do %>
+        <div class="alert alert-error">
+          <ul class="list-disc list-inside">
+            <%= for msg <- @errors do %>
+              <li>{msg}</li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <form id="note-form" phx-submit="form_action" class="space-y-6">
+        <input type="hidden" name="block_order" value={block_order_value(@blocks)} />
 
         <div>
           <label class="label">
@@ -90,57 +261,175 @@ defmodule ElectricbrainWeb.NoteLive.Form do
           </label>
           <input
             type="text"
-            name={@form[:title].name}
-            value={Phoenix.HTML.Form.normalize_value("text", @form[:title].value)}
+            name="title"
+            value={@title}
             class="input input-bordered w-full bg-base-200"
             placeholder="What's on your mind?"
             autocomplete="off"
             required
           />
-          <%= for {msg, _} <- @form[:title].errors do %>
-            <p class="text-error text-sm mt-1">{msg}</p>
+        </div>
+
+        <div class="space-y-4">
+          <%= for {block, idx} <- Enum.with_index(@blocks) do %>
+            <.block_editor
+              block={block}
+              idx={idx}
+              total={length(@blocks)}
+            />
+          <% end %>
+
+          <%= if @blocks == [] do %>
+            <p class="text-sm text-neutral-content/60 text-center">
+              No blocks yet — add one below.
+            </p>
           <% end %>
         </div>
 
-        <div>
-          <label class="label">
-            <span class="label-text">Body (Markdown)</span>
-          </label>
-          <textarea
-            name={@form[:body].name}
-            rows="10"
-            class="textarea textarea-bordered w-full font-mono text-sm bg-base-200"
-            placeholder="# Heading\n\nWrite anything in markdown..."
-          >{Phoenix.HTML.Form.normalize_value("textarea", @form[:body].value)}</textarea>
-        </div>
-
-        <div>
-          <label class="label flex items-center justify-between">
-            <span class="label-text">Sketch</span>
-            <button type="button" class="btn btn-xs btn-ghost" id="clear-canvas-btn">
-              <.icon name="hero-trash-micro" class="size-4" /> Clear
-            </button>
-          </label>
-          <div
-            id="drawing-canvas"
-            phx-hook="DrawingCanvas"
-            phx-update="ignore"
-            data-target="#drawing-input"
-            data-initial={@drawing_json}
-            class="w-full aspect-[3/2] bg-base-200 border border-base-300 rounded-box touch-none"
+        <div class="flex flex-wrap gap-2 justify-center border-t border-base-300 pt-4">
+          <button
+            type="submit"
+            name="_action"
+            value="add_block:markdown"
+            class="btn btn-sm btn-ghost"
           >
-          </div>
-          <p class="text-xs text-neutral-content/60 mt-1">
-            Tap and drag to sketch. Touch-friendly on phones and tablets.
-          </p>
+            <.icon name="hero-document-text-micro" class="size-4" /> Markdown
+          </button>
+          <button
+            type="submit"
+            name="_action"
+            value="add_block:sketch"
+            class="btn btn-sm btn-ghost"
+          >
+            <.icon name="hero-pencil-square-micro" class="size-4" /> Sketch
+          </button>
         </div>
 
         <div class="flex gap-2 justify-end">
           <.link navigate={~p"/notes"} class="btn btn-ghost">Cancel</.link>
-          <button type="submit" class="btn btn-primary">Save note</button>
+          <button type="submit" name="_action" value="save" class="btn btn-primary">
+            Save note
+          </button>
         </div>
-      </.form>
+      </form>
     </Layouts.app>
     """
+  end
+
+  attr :block, :map, required: true
+  attr :idx, :integer, required: true
+  attr :total, :integer, required: true
+
+  defp block_editor(assigns) do
+    ~H"""
+    <div class="card bg-base-200 border border-base-300">
+      <div class="card-body p-4 space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs uppercase tracking-wide text-neutral-content/60">
+            {block_kind_label(@block.kind)}
+          </span>
+          <div class="flex gap-1">
+            <button
+              type="submit"
+              name="_action"
+              value={"move_up:#{@block.client_id}"}
+              class="btn btn-xs btn-ghost"
+              disabled={@idx == 0}
+              aria-label="Move up"
+            >
+              <.icon name="hero-arrow-up-micro" class="size-4" />
+            </button>
+            <button
+              type="submit"
+              name="_action"
+              value={"move_down:#{@block.client_id}"}
+              class="btn btn-xs btn-ghost"
+              disabled={@idx == @total - 1}
+              aria-label="Move down"
+            >
+              <.icon name="hero-arrow-down-micro" class="size-4" />
+            </button>
+            <button
+              type="submit"
+              name="_action"
+              value={"remove_block:#{@block.client_id}"}
+              class="btn btn-xs btn-ghost text-error"
+              aria-label="Remove block"
+            >
+              <.icon name="hero-trash-micro" class="size-4" />
+            </button>
+          </div>
+        </div>
+
+        <input type="hidden" name={"blocks[#{@block.client_id}][kind]"} value={@block.kind} />
+        <input type="hidden" name={"blocks[#{@block.client_id}][client_id]"} value={@block.client_id} />
+        <%= if @block.server_id do %>
+          <input
+            type="hidden"
+            name={"blocks[#{@block.client_id}][server_id]"}
+            value={@block.server_id}
+          />
+        <% end %>
+
+        {render_block_body(assigns)}
+      </div>
+    </div>
+    """
+  end
+
+  defp render_block_body(%{block: %{kind: :markdown}} = assigns) do
+    ~H"""
+    <textarea
+      name={"blocks[#{@block.client_id}][body]"}
+      rows="8"
+      class="textarea textarea-bordered w-full font-mono text-sm bg-base-100"
+      placeholder="# Heading&#10;&#10;Write in markdown..."
+    >{@block.data["body"] || ""}</textarea>
+    """
+  end
+
+  defp render_block_body(%{block: block} = assigns) when block.kind == :sketch do
+    assigns =
+      assigns
+      |> assign(:drawing_json, Jason.encode!(block.data["drawing"] || %{"strokes" => []}))
+      |> assign(:input_id, "block-#{block.client_id}-drawing")
+      |> assign(:canvas_id, "block-#{block.client_id}-canvas")
+      |> assign(:clear_id, "block-#{block.client_id}-clear")
+
+    ~H"""
+    <div class="space-y-2">
+      <div class="flex justify-end">
+        <button type="button" class="btn btn-xs btn-ghost" id={@clear_id}>
+          <.icon name="hero-trash-micro" class="size-4" /> Clear
+        </button>
+      </div>
+      <input
+        type="hidden"
+        id={@input_id}
+        name={"blocks[#{@block.client_id}][drawing]"}
+        value={@drawing_json}
+      />
+      <div
+        id={@canvas_id}
+        phx-hook="DrawingCanvas"
+        phx-update="ignore"
+        data-target={"##{@input_id}"}
+        data-clear={"##{@clear_id}"}
+        data-initial={@drawing_json}
+        class="w-full aspect-[3/2] bg-base-100 border border-base-300 rounded-box touch-none"
+      >
+      </div>
+      <p class="text-xs text-neutral-content/60">
+        Tap and drag to sketch. Touch-friendly on phones and tablets.
+      </p>
+    </div>
+    """
+  end
+
+  defp block_kind_label(:markdown), do: "Markdown"
+  defp block_kind_label(:sketch), do: "Sketch"
+
+  defp block_order_value(blocks) do
+    blocks |> Enum.map(& &1.client_id) |> Enum.join(",")
   end
 end

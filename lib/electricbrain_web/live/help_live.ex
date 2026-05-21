@@ -6,7 +6,7 @@ defmodule ElectricbrainWeb.HelpLive do
     {:ok,
      socket
      |> assign(:page_title, "Help")
-     |> assign(:html, render_markdown(read_help()))}
+     |> assign(:html, ElectricbrainWeb.Markdown.to_html(read_help()))}
   end
 
   defp read_help do
@@ -16,19 +16,6 @@ defmodule ElectricbrainWeb.HelpLive do
       {:ok, body} -> body
       {:error, _} -> "Help content not found."
     end
-  end
-
-  defp render_markdown(body) do
-    MDEx.to_html!(body,
-      extension: [
-        strikethrough: true,
-        table: true,
-        autolink: true,
-        tasklist: true,
-        footnotes: true
-      ],
-      render: [unsafe: false]
-    )
   end
 
   @impl true

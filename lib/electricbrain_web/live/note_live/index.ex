@@ -26,7 +26,20 @@ defmodule ElectricbrainWeb.NoteLive.Index do
   defp list_notes(user) do
     Note
     |> Ash.Query.sort(inserted_at: :desc)
+    |> Ash.Query.load(:blocks)
     |> Ash.read!(actor: user, domain: Notes)
+  end
+
+  defp note_preview(note) do
+    blocks = note.blocks || []
+
+    case Enum.find(blocks, &(&1.kind == :markdown)) do
+      nil ->
+        if Enum.any?(blocks, &(&1.kind == :sketch)), do: "(sketch)", else: ""
+
+      block ->
+        block.data |> Map.get("body", "") |> String.slice(0, 200)
+    end
   end
 
   @impl true
@@ -53,7 +66,7 @@ defmodule ElectricbrainWeb.NoteLive.Index do
                 </.link>
               </h3>
               <p class="text-sm text-neutral-content/70 line-clamp-3 whitespace-pre-wrap">
-                {String.slice(note.body || "", 0, 200)}
+                {note_preview(note)}
               </p>
               <div class="card-actions justify-end mt-2">
                 <.link navigate={~p"/notes/#{note.id}/edit"} class="btn btn-xs btn-ghost">
