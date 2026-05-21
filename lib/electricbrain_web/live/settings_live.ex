@@ -13,6 +13,7 @@ defmodule ElectricbrainWeb.SettingsLive do
      socket
      |> assign(:page_title, "Settings")
      |> assign(:vapid_public_key, vapid_public_key())
+     |> assign(:push_environment, nil)
      |> assign(:push_subscriptions, list_subscriptions(socket.assigns.current_user))}
   end
 
@@ -42,6 +43,19 @@ defmodule ElectricbrainWeb.SettingsLive do
 
   def handle_event("enable_push", _params, socket) do
     {:noreply, push_event(socket, "push:request_subscribe", %{})}
+  end
+
+  def handle_event(
+        "push_environment",
+        %{"isIOS" => is_ios, "isStandalone" => standalone, "pushSupported" => supported},
+        socket
+      ) do
+    {:noreply,
+     assign(socket, :push_environment, %{
+       ios: is_ios,
+       standalone: standalone,
+       supported: supported
+     })}
   end
 
   def handle_event(
@@ -191,60 +205,71 @@ defmodule ElectricbrainWeb.SettingsLive do
             Get a push 5 minutes before each planned item starts. One subscription per browser — enable on each device you want notified.
           </p>
 
-          <%= if is_nil(@vapid_public_key) do %>
-            <div class="alert alert-warning text-xs mt-2">
-              VAPID keys not configured on this server. Set <code>VAPID_PUBLIC_KEY</code>
-              and <code>VAPID_PRIVATE_KEY</code>
-              env vars.
-            </div>
-          <% else %>
-            <div class="flex flex-wrap items-center gap-2 mt-2">
-              <button type="button" phx-click="enable_push" class="btn btn-sm btn-primary">
-                <.icon name="hero-bell-micro" class="size-4" /> Enable on this device
-              </button>
-              <button
-                :if={@push_subscriptions != []}
-                type="button"
-                phx-click="test_push"
-                class="btn btn-sm btn-ghost"
-              >
-                <.icon name="hero-paper-airplane-micro" class="size-4" /> Send test
-              </button>
-            </div>
+          <%= cond do %>
+            <% is_nil(@vapid_public_key) -> %>
+              <div class="alert alert-warning text-xs mt-2">
+                VAPID keys not configured on this server. Set <code>VAPID_PUBLIC_KEY</code>
+                and <code>VAPID_PRIVATE_KEY</code>
+                env vars.
+              </div>
+            <% match?(%{ios: true, standalone: false, supported: false}, @push_environment) -> %>
+              <div class="alert alert-info text-xs mt-2">
+                <div>
+                  <p class="font-semibold mb-1">iOS requires installing this app first</p>
+                  <p>
+                    Tap the share icon <span class="inline-block px-1">⎙</span>
+                    in Safari, then "Add to Home Screen". Open the installed icon and come back here to enable notifications.
+                  </p>
+                </div>
+              </div>
+            <% match?(%{supported: false}, @push_environment) -> %>
+              <div class="alert alert-warning text-xs mt-2">
+                Push notifications aren't supported in this browser.
+              </div>
+            <% true -> %>
+              <div class="flex flex-wrap items-center gap-2 mt-2">
+                <button type="button" phx-click="enable_push" class="btn btn-sm btn-primary">
+                  <.icon name="hero-bell-micro" class="size-4" /> Enable on this device
+                </button>
+                <button
+                  :if={@push_subscriptions != []}
+                  type="button"
+                  phx-click="test_push"
+                  class="btn btn-sm btn-ghost"
+                >
+                  <.icon name="hero-paper-airplane-micro" class="size-4" /> Send test
+                </button>
+              </div>
+          <% end %>
 
-            <%= if @push_subscriptions == [] do %>
-              <p class="text-xs text-neutral-content/60 mt-2">
-                No devices subscribed yet.
-              </p>
-            <% else %>
-              <ul class="mt-3 space-y-1">
-                <%= for sub <- @push_subscriptions do %>
-                  <li class="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-base-300/40 text-sm">
-                    <.icon
-                      name="hero-device-phone-mobile-micro"
-                      class="size-4 text-neutral-content/60"
-                    />
-                    <span class="font-medium">{short_user_agent(sub.user_agent)}</span>
-                    <span class="text-xs text-neutral-content/60">
-                      added {Calendar.strftime(
-                        DateTime.shift_zone!(sub.inserted_at, @current_user.timezone || "Etc/UTC"),
-                        "%Y-%m-%d"
-                      )}
-                    </span>
-                    <div class="flex-1"></div>
-                    <button
-                      type="button"
-                      phx-click="delete_subscription"
-                      phx-value-id={sub.id}
-                      data-confirm="Disable notifications on this device?"
-                      class="btn btn-xs btn-ghost text-error"
-                    >
-                      <.icon name="hero-x-mark-micro" class="size-4" />
-                    </button>
-                  </li>
-                <% end %>
-              </ul>
-            <% end %>
+          <%= if @vapid_public_key && @push_subscriptions != [] do %>
+            <ul class="mt-3 space-y-1">
+              <%= for sub <- @push_subscriptions do %>
+                <li class="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-base-300/40 text-sm">
+                  <.icon
+                    name="hero-device-phone-mobile-micro"
+                    class="size-4 text-neutral-content/60"
+                  />
+                  <span class="font-medium">{short_user_agent(sub.user_agent)}</span>
+                  <span class="text-xs text-neutral-content/60">
+                    added {Calendar.strftime(
+                      DateTime.shift_zone!(sub.inserted_at, @current_user.timezone || "Etc/UTC"),
+                      "%Y-%m-%d"
+                    )}
+                  </span>
+                  <div class="flex-1"></div>
+                  <button
+                    type="button"
+                    phx-click="delete_subscription"
+                    phx-value-id={sub.id}
+                    data-confirm="Disable notifications on this device?"
+                    class="btn btn-xs btn-ghost text-error"
+                  >
+                    <.icon name="hero-x-mark-micro" class="size-4" />
+                  </button>
+                </li>
+              <% end %>
+            </ul>
           <% end %>
         </div>
       </div>

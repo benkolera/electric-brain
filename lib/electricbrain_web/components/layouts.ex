@@ -40,76 +40,32 @@ defmodule ElectricbrainWeb.Layouts do
           </a>
         </div>
         <div class="flex-none">
-          <ul class="menu menu-horizontal items-center gap-1 px-1">
-            <%= if @current_user do %>
-              <li>
-                <.link navigate={~p"/plan"} class="font-medium">
-                  <.icon name="hero-calendar-days-micro" class="size-4" /> Plan
-                </.link>
-              </li>
-              <li>
-                <.link navigate={~p"/categories"} class="font-medium">
-                  <.icon name="hero-rectangle-stack-micro" class="size-4" /> Categories
-                </.link>
-              </li>
-              <li>
-                <.link navigate={~p"/notes"} class="font-medium">
-                  <.icon name="hero-document-text-micro" class="size-4" /> Notes
-                </.link>
-              </li>
-              <li>
-                <.link navigate={~p"/todos"} class="font-medium">
-                  <.icon name="hero-check-circle-micro" class="size-4" /> Todos
-                </.link>
-              </li>
-              <li>
-                <.link navigate={~p"/habits"} class="font-medium">
-                  <.icon name="hero-arrow-path-micro" class="size-4" /> Habits
-                </.link>
-              </li>
-              <li>
-                <.link navigate={~p"/time-blocks"} class="font-medium">
-                  <.icon name="hero-clock-micro" class="size-4" /> Time blocks
-                </.link>
-              </li>
-              <li>
-                <.link navigate={~p"/metrics"} class="font-medium">
-                  <.icon name="hero-chart-bar-micro" class="size-4" /> Metrics
-                </.link>
-              </li>
-              <li>
-                <.link navigate={~p"/moments"} class="font-medium">
-                  <.icon name="hero-pause-circle-micro" class="size-4" /> Moments
-                </.link>
-              </li>
-              <li>
-                <details>
-                  <summary class="font-medium text-neutral-content/80">
-                    {@current_user.email}
-                  </summary>
-                  <ul class="bg-base-200 rounded-box right-0 min-w-40 z-10">
-                    <li>
-                      <.link navigate={~p"/settings"}>
-                        <.icon name="hero-cog-6-tooth-micro" class="size-4" /> Settings
-                      </.link>
-                    </li>
-                    <li>
-                      <.link href={~p"/sign-out"} method="delete">
-                        <.icon name="hero-arrow-right-on-rectangle-micro" class="size-4" /> Sign out
-                      </.link>
-                    </li>
-                  </ul>
-                </details>
-              </li>
-            <% else %>
+          <%= if @current_user do %>
+            <ul class="hidden lg:flex menu menu-horizontal items-center gap-1 px-1">
+              <.nav_items current_user={@current_user} />
+            </ul>
+
+            <details class="dropdown dropdown-end lg:hidden">
+              <summary
+                class="btn btn-ghost btn-square"
+                aria-label="Open menu"
+              >
+                <.icon name="hero-bars-3-micro" class="size-6" />
+              </summary>
+              <ul class="dropdown-content menu bg-base-200 rounded-box mt-2 min-w-56 shadow-lg z-20 p-2 gap-1">
+                <.nav_items current_user={@current_user} />
+              </ul>
+            </details>
+          <% else %>
+            <ul class="menu menu-horizontal items-center gap-1 px-1">
               <li>
                 <.link navigate={~p"/sign-in"} class="btn btn-sm btn-ghost">Sign in</.link>
               </li>
               <li>
                 <.link navigate={~p"/register"} class="btn btn-sm btn-primary">Register</.link>
               </li>
-            <% end %>
-          </ul>
+            </ul>
+          <% end %>
         </div>
       </header>
 
@@ -137,6 +93,64 @@ defmodule ElectricbrainWeb.Layouts do
 
       <.flash_group flash={@flash} />
     </div>
+    """
+  end
+
+  attr :current_user, :map, required: true
+
+  defp nav_items(assigns) do
+    ~H"""
+    <li>
+      <.link navigate={~p"/plan"} class="font-medium">
+        <.icon name="hero-calendar-days-micro" class="size-4" /> Plan
+      </.link>
+    </li>
+    <li>
+      <.link navigate={~p"/categories"} class="font-medium">
+        <.icon name="hero-rectangle-stack-micro" class="size-4" /> Categories
+      </.link>
+    </li>
+    <li>
+      <.link navigate={~p"/notes"} class="font-medium">
+        <.icon name="hero-document-text-micro" class="size-4" /> Notes
+      </.link>
+    </li>
+    <li>
+      <.link navigate={~p"/todos"} class="font-medium">
+        <.icon name="hero-check-circle-micro" class="size-4" /> Todos
+      </.link>
+    </li>
+    <li>
+      <.link navigate={~p"/habits"} class="font-medium">
+        <.icon name="hero-arrow-path-micro" class="size-4" /> Habits
+      </.link>
+    </li>
+    <li>
+      <.link navigate={~p"/time-blocks"} class="font-medium">
+        <.icon name="hero-clock-micro" class="size-4" /> Time blocks
+      </.link>
+    </li>
+    <li>
+      <.link navigate={~p"/metrics"} class="font-medium">
+        <.icon name="hero-chart-bar-micro" class="size-4" /> Metrics
+      </.link>
+    </li>
+    <li>
+      <.link navigate={~p"/moments"} class="font-medium">
+        <.icon name="hero-pause-circle-micro" class="size-4" /> Moments
+      </.link>
+    </li>
+    <li>
+      <.link navigate={~p"/settings"} class="font-medium">
+        <.icon name="hero-cog-6-tooth-micro" class="size-4" /> Settings
+      </.link>
+    </li>
+    <li>
+      <.link href={~p"/sign-out"} method="delete" class="font-medium text-neutral-content/70">
+        <.icon name="hero-arrow-right-on-rectangle-micro" class="size-4" /> Sign out
+        <span class="text-xs">({@current_user.email})</span>
+      </.link>
+    </li>
     """
   end
 

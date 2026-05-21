@@ -49,8 +49,27 @@ const subscribeToPush = async (vapidPublicKey) => {
   })
 }
 
+// iOS Safari needs the site installed to home screen for web push to
+// work — in a regular Safari tab, PushManager is undefined. We report
+// the environment to the server on mount so Settings can show an
+// "Add to Home Screen" hint instead of the broken Enable button.
+const detectEnvironment = () => {
+  const ua = navigator.userAgent || ''
+  const isIOS = /iPhone|iPad|iPod/.test(ua)
+  // navigator.standalone is the legacy iOS Safari property; matchMedia
+  // covers Android Chrome + the standards-track variant.
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window
+
+  return { isIOS, isStandalone, pushSupported }
+}
+
 const PushSubscription = {
   mounted() {
+    this.pushEvent('push_environment', detectEnvironment())
+
     this.handleEvent('push:request_subscribe', async () => {
       try {
         const vapid = this.el.dataset.vapidPublicKey
