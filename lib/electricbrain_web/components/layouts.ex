@@ -78,6 +78,11 @@ defmodule ElectricbrainWeb.Layouts do
                 </.link>
               </li>
               <li>
+                <.link navigate={~p"/moments"} class="font-medium">
+                  <.icon name="hero-pause-circle-micro" class="size-4" /> Moments
+                </.link>
+              </li>
+              <li>
                 <details>
                   <summary class="font-medium text-neutral-content/80">
                     {@current_user.email}
@@ -119,6 +124,16 @@ defmodule ElectricbrainWeb.Layouts do
           {render_slot(@inner_block)}
         </div>
       </main>
+
+      <.link
+        :if={@current_user}
+        navigate={~p"/moments/new"}
+        class="fixed bottom-5 right-5 z-30 btn btn-accent btn-circle shadow-lg drop-shadow-[0_0_12px_var(--color-accent)] size-14"
+        title="Pause — sit with a craving, urge or feeling"
+        aria-label="Pause"
+      >
+        <.icon name="hero-pause-circle" class="size-7" />
+      </.link>
 
       <.flash_group flash={@flash} />
     </div>

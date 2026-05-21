@@ -1,0 +1,38 @@
+{
+  "name": "Electric Brain",
+  "short_name": "Brain",
+  "description": "Second brain for balance across life areas — habits, todos, planner, metrics, mindful moments.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#22d3ee",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/images/brain-logo-256.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/brain-logo-256.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Pause",
+      "short_name": "Pause",
+      "description": "Sit with a craving, urge or feeling",
+      "url": "/moments/new"
+    },
+    {
+      "name": "Today",
+      "short_name": "Today",
+      "description": "Today's agenda",
+      "url": "/"
+    }
+  ]
+}

@@ -51,6 +51,12 @@ Single Phoenix app — no umbrella. Deployed as half of the
   "yellow brick road" goal (`at_least` / `at_most` × a value per
   day/week/month); the chart overlays the road line and an on-track /
   off-track pill shows the current bucket's standing.
+- **Moments** — radical-acceptance pauses (Tara Brach's RAIN: Recognize,
+  Allow, Investigate, Nurture). When a craving, urge or feeling pulls,
+  open the floating "Pause" button, name what's there, slide an intensity,
+  and optionally journal through the four RAIN prompts. Designed to be
+  mobile-quick — minimum required is the name and intensity. History
+  page lists past moments filtered by kind.
 - **Google Calendar push** — one-way sync from the planner to the
   user's primary calendar. Idempotent via stored `google_event_id`;
   category colour drives the event colour.
@@ -78,6 +84,7 @@ flowchart LR
         planner[Planner.Entry]
         notes[Notes]
         metrics[Metrics<br/>+ Measurement<br/>+ HabitMetric]
+        moments[Moments<br/>RAIN journal]
     end
 
     liveview --> accounts
@@ -88,12 +95,14 @@ flowchart LR
     liveview --> planner
     liveview --> notes
     liveview --> metrics
+    liveview --> moments
 
     todos --> categories
     habits --> categories
     timeblocks --> categories
     notes --> categories
     metrics --> categories
+    moments --> categories
 
     planner -->|"todo_id or<br/>habit_id or<br/>time_block_id"| todos
     planner --> habits
