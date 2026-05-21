@@ -46,6 +46,12 @@ defmodule Electricbrain.Habits.Reflection do
     end
   end
 
+  validations do
+    validate {Electricbrain.Validations.OwnedParent,
+              parent: Electricbrain.Habits.Habit, field: :habit_id},
+             on: [:create]
+  end
+
   attributes do
     uuid_primary_key :id
 

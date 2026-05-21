@@ -49,6 +49,10 @@ defmodule Electricbrain.Metrics.Measurement do
 
   validations do
     validate {Electricbrain.Validations.NotFuture, field: :recorded_at}
+
+    validate {Electricbrain.Validations.OwnedParent,
+              parent: Electricbrain.Metrics.Metric, field: :metric_id},
+             on: [:create]
   end
 
   attributes do

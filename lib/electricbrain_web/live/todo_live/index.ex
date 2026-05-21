@@ -169,9 +169,18 @@ defmodule ElectricbrainWeb.TodoLive.Index do
                 name={@form[:priority].name}
                 class="select select-bordered bg-base-100"
               >
-                <option value="low">low</option>
-                <option value="medium" selected>medium</option>
-                <option value="high">high</option>
+                <option value="low" selected={@form[:priority].value in [:low, "low"]}>
+                  low
+                </option>
+                <option
+                  value="medium"
+                  selected={@form[:priority].value in [nil, "", :medium, "medium"]}
+                >
+                  medium
+                </option>
+                <option value="high" selected={@form[:priority].value in [:high, "high"]}>
+                  high
+                </option>
               </select>
             </div>
             <div>
@@ -199,10 +208,30 @@ defmodule ElectricbrainWeb.TodoLive.Index do
                 name={@form[:recurrence].name}
                 class="select select-bordered bg-base-100 w-full"
               >
-                <option value="none" selected>(once)</option>
-                <option value="weekly">weekly</option>
-                <option value="biweekly">every 2 weeks</option>
-                <option value="monthly">monthly</option>
+                <option
+                  value="none"
+                  selected={@form[:recurrence].value in [nil, "", :none, "none"]}
+                >
+                  (once)
+                </option>
+                <option
+                  value="weekly"
+                  selected={@form[:recurrence].value in [:weekly, "weekly"]}
+                >
+                  weekly
+                </option>
+                <option
+                  value="biweekly"
+                  selected={@form[:recurrence].value in [:biweekly, "biweekly"]}
+                >
+                  every 2 weeks
+                </option>
+                <option
+                  value="monthly"
+                  selected={@form[:recurrence].value in [:monthly, "monthly"]}
+                >
+                  monthly
+                </option>
               </select>
             </div>
             <div class="min-w-0">

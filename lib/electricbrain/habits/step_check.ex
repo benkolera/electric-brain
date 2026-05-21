@@ -35,6 +35,16 @@ defmodule Electricbrain.Habits.StepCheck do
     end
   end
 
+  validations do
+    validate {Electricbrain.Validations.OwnedParent,
+              parent: Electricbrain.Habits.Completion, field: :completion_id},
+             on: [:create]
+
+    validate {Electricbrain.Validations.OwnedParent,
+              parent: Electricbrain.Habits.RitualStep, field: :ritual_step_id},
+             on: [:create]
+  end
+
   attributes do
     uuid_primary_key :id
 
