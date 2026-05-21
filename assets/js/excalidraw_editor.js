@@ -107,6 +107,8 @@ const ExcalidrawEditor = {
         if (svgDarkInput) svgDarkInput.value = darkSvg
         if (previewLight) previewLight.innerHTML = lightSvg
         if (previewDark) previewDark.innerHTML = darkSvg || lightSvg
+
+        el.dispatchEvent(new Event("dirty", { bubbles: true }))
       } catch (e) {
         console.error("excalidraw save failed", e)
       }

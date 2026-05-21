@@ -16,6 +16,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
     |> assign(:title, "")
     |> assign(:blocks, [])
     |> assign(:errors, [])
+    |> assign(:dirty, false)
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
@@ -33,6 +34,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
     |> assign(:title, note.title)
     |> assign(:blocks, blocks)
     |> assign(:errors, [])
+    |> assign(:dirty, false)
   end
 
   defp db_block_to_socket(block) do
@@ -52,14 +54,16 @@ defmodule ElectricbrainWeb.NoteLive.Form do
 
     case action do
       "save" -> save(socket)
-      "add_block:markdown" -> {:noreply, add_block(socket, :markdown)}
-      "add_block:excalidraw" -> {:noreply, add_block(socket, :excalidraw)}
-      "remove_block:" <> cid -> {:noreply, remove_block(socket, cid)}
-      "move_up:" <> cid -> {:noreply, move_block(socket, cid, -1)}
-      "move_down:" <> cid -> {:noreply, move_block(socket, cid, +1)}
+      "add_block:markdown" -> {:noreply, socket |> add_block(:markdown) |> mark_dirty()}
+      "add_block:excalidraw" -> {:noreply, socket |> add_block(:excalidraw) |> mark_dirty()}
+      "remove_block:" <> cid -> {:noreply, socket |> remove_block(cid) |> mark_dirty()}
+      "move_up:" <> cid -> {:noreply, socket |> move_block(cid, -1) |> mark_dirty()}
+      "move_down:" <> cid -> {:noreply, socket |> move_block(cid, +1) |> mark_dirty()}
       _ -> {:noreply, socket}
     end
   end
+
+  defp mark_dirty(socket), do: assign(socket, :dirty, true)
 
   defp merge_params_into_socket(socket, params) do
     title = Map.get(params, "title", socket.assigns.title)
@@ -267,7 +271,34 @@ defmodule ElectricbrainWeb.NoteLive.Form do
         </div>
       <% end %>
 
-      <form id="note-form" phx-submit="form_action" class="space-y-6">
+      <div
+        id="unsaved-banner"
+        class={[
+          "fixed bottom-0 inset-x-0 z-40 px-4 py-3 flex items-center justify-between gap-3 border-t border-warning/40 bg-warning text-warning-content shadow-lg",
+          if(!@dirty, do: "hidden", else: "")
+        ]}
+      >
+        <span class="text-sm font-medium flex items-center gap-2">
+          <.icon name="hero-exclamation-triangle-micro" class="size-4" /> Unsaved changes
+        </span>
+        <button
+          type="submit"
+          form="note-form"
+          name="_action"
+          value="save"
+          class="btn btn-sm btn-primary"
+        >
+          <.icon name="hero-check-micro" class="size-4" /> Save now
+        </button>
+      </div>
+
+      <form
+        id="note-form"
+        phx-hook="DirtyForm"
+        phx-submit="form_action"
+        data-banner="#unsaved-banner"
+        class="space-y-6 pb-20"
+      >
         <input type="hidden" name="block_order" value={block_order_value(@blocks)} />
 
         <div>
