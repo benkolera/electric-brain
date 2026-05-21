@@ -66,6 +66,27 @@ defmodule Electricbrain.Planner.Entry do
       accept [:google_event_id]
       require_atomic? false
     end
+
+    # "Done this cycle" — keeps the row so prime won't recreate it, but
+    # hides the entry from agenda/calendar views.
+    update :complete do
+      accept []
+      change set_attribute(:completed_at, &DateTime.utc_now/0)
+      change set_attribute(:dismissed_at, nil)
+    end
+
+    update :uncomplete do
+      accept []
+      change set_attribute(:completed_at, nil)
+    end
+
+    # "Skip this cycle" — same shape as complete but distinguishes
+    # actively-done from intentionally-skipped in history.
+    update :dismiss do
+      accept []
+      change set_attribute(:dismissed_at, &DateTime.utc_now/0)
+      change set_attribute(:completed_at, nil)
+    end
   end
 
   policies do
@@ -121,6 +142,19 @@ defmodule Electricbrain.Planner.Entry do
     # Set when the upcoming-start push notification has been fired for this
     # entry. Cleared on :schedule / :unschedule so a reschedule re-arms it.
     attribute :notified_at, :utc_datetime_usec do
+      public? true
+    end
+
+    # "Done this cycle" for recurring todos (and any other entry the user
+    # marks done from the agenda). The row stays so prime won't recreate
+    # the entry within the same cycle; agenda/calendar views hide it.
+    attribute :completed_at, :utc_datetime_usec do
+      public? true
+    end
+
+    # "Skip this cycle" — same dedup effect as completed_at but tells history
+    # the user explicitly chose not to do it.
+    attribute :dismissed_at, :utc_datetime_usec do
       public? true
     end
 

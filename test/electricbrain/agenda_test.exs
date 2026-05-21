@@ -106,6 +106,40 @@ defmodule Electricbrain.AgendaTest do
       assert length(entries) >= 1
     end
 
+    test "completed entries are hidden from the agenda", %{user: user} do
+      {:ok, pid} = Agenda.ensure_started(user.id)
+      Ecto.Adapters.SQL.Sandbox.allow(Electricbrain.Repo, self(), pid)
+
+      habit = create_habit!(user)
+      now = DateTime.utc_now()
+
+      entry =
+        Entry
+        |> Ash.Changeset.for_create(
+          :create,
+          %{
+            week_start: DateTime.to_date(now),
+            planned_at: DateTime.add(now, 5, :second),
+            duration_minutes: 30,
+            habit_id: habit.id
+          },
+          actor: user
+        )
+        |> Ash.create!()
+
+      Agenda.refresh(user.id)
+      %{items: items} = Agenda.state(user.id)
+      assert Enum.any?(items, &(&1.entry.id == entry.id))
+
+      entry
+      |> Ash.Changeset.for_update(:complete, %{}, actor: user)
+      |> Ash.update!()
+
+      Agenda.refresh(user.id)
+      %{items: items} = Agenda.state(user.id)
+      refute Enum.any?(items, &(&1.entry.id == entry.id))
+    end
+
     test "refresh recomputes and broadcasts when an entry is added", %{user: user} do
       Phoenix.PubSub.subscribe(Electricbrain.PubSub, Agenda.topic(user.id))
       {:ok, pid} = Agenda.ensure_started(user.id)

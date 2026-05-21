@@ -160,6 +160,8 @@ defmodule Electricbrain.Agenda do
     |> Ash.read!(actor: user)
     |> Enum.filter(fn e ->
       not is_nil(e.planned_at) and
+        is_nil(e.completed_at) and
+        is_nil(e.dismissed_at) and
         DateTime.compare(e.planned_at, window_start) != :lt and
         DateTime.compare(e.planned_at, window_end) == :lt
     end)

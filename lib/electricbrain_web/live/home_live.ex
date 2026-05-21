@@ -6,6 +6,7 @@ defmodule ElectricbrainWeb.HomeLive do
 
   alias Electricbrain.Habits.Completion
   alias Electricbrain.Habits.Habit
+  alias Electricbrain.Planner.Entry
   alias Electricbrain.TimeBlocks.TimeBlock
   alias Electricbrain.Todos.Todo
 
@@ -56,6 +57,21 @@ defmodule ElectricbrainWeb.HomeLive do
     Electricbrain.Agenda.refresh(user.id)
 
     {:noreply, socket}
+  end
+
+  # For recurring todos we mark the planner Entry done-this-cycle rather
+  # than toggling the parent Todo (the parent is "recurring forever").
+  def handle_event("complete_entry", %{"id" => entry_id}, socket) do
+    user = socket.assigns.current_user
+
+    Entry
+    |> Ash.get!(entry_id, actor: user)
+    |> Ash.Changeset.for_update(:complete, %{}, actor: user)
+    |> Ash.update!()
+
+    Electricbrain.Agenda.refresh(user.id)
+
+    {:noreply, put_flash(socket, :info, "Marked done")}
   end
 
   defp today_window(tz, now) do
@@ -141,6 +157,7 @@ defmodule ElectricbrainWeb.HomeLive do
       |> assign(:habit, habit)
       |> assign(:todo, todo)
       |> assign(:ritual?, habit && is_list(habit.ritual_steps) && habit.ritual_steps != [])
+      |> assign(:recurring_todo?, todo && todo.recurrence in [:weekly, :biweekly, :monthly])
 
     ~H"""
     <%= cond do %>
@@ -159,6 +176,16 @@ defmodule ElectricbrainWeb.HomeLive do
           phx-value-id={@habit.id}
           class="btn btn-xs btn-success"
           title="Mark done"
+        >
+          <.icon name="hero-check-micro" class="size-4" />
+        </button>
+      <% @recurring_todo? -> %>
+        <button
+          type="button"
+          phx-click="complete_entry"
+          phx-value-id={@item.entry.id}
+          class="btn btn-xs btn-success"
+          title="Done this cycle"
         >
           <.icon name="hero-check-micro" class="size-4" />
         </button>

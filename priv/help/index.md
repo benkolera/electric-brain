@@ -52,11 +52,18 @@ Set **Repeats** to make it recurring — weekly, every 2 weeks (your
 fortnightly bills/groceries/bin night), or monthly. Pick a **first
 instance (anchor)** datetime — that fixes the day-of-week,
 day-of-month, time-of-day, and (for fortnightly) the cadence's phase.
-The planner auto-creates an entry each cycle. To skip a cycle, remove
-that week's entry; to stop recurring, edit it back to "(once)".
+The planner auto-creates an entry each cycle.
 
-Recurring todos are never "completed" globally — the weekly
-auto-prime IS the recurrence.
+A recurring entry has two cycle-level actions in addition to the usual
+reschedule/unschedule:
+
+- **Done** — marks the cycle done. The entry disappears from the
+  agenda and calendar; the next cycle's entry primes on schedule.
+- **Skip** — marks the cycle dismissed (didn't do it, not coming back
+  this cycle). Same hide behaviour, different history.
+
+To stop recurring entirely, edit the todo back to "(once)". Recurring
+todos are never "completed" globally — the cycle is the unit of done.
 
 ## Habits — recurring count-based intents
 

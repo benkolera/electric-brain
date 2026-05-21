@@ -160,6 +160,43 @@ defmodule Electricbrain.Planner.EntryTest do
     assert Ash.read!(Entry, actor: user) == []
   end
 
+  test "complete sets completed_at and clears dismissed_at", %{user: user, todo: todo} do
+    entry =
+      Entry
+      |> Ash.Changeset.for_create(
+        :create,
+        %{
+          todo_id: todo.id,
+          week_start: ~D[2026-05-18],
+          planned_at: ~U[2026-05-20 18:00:00.000000Z]
+        },
+        actor: user
+      )
+      |> Ash.create!()
+
+    entry =
+      entry
+      |> Ash.Changeset.for_update(:dismiss, %{}, actor: user)
+      |> Ash.update!()
+
+    refute is_nil(entry.dismissed_at)
+
+    entry =
+      entry
+      |> Ash.Changeset.for_update(:complete, %{}, actor: user)
+      |> Ash.update!()
+
+    refute is_nil(entry.completed_at)
+    assert is_nil(entry.dismissed_at)
+
+    uncompleted =
+      entry
+      |> Ash.Changeset.for_update(:uncomplete, %{}, actor: user)
+      |> Ash.update!()
+
+    assert is_nil(uncompleted.completed_at)
+  end
+
   test "user only sees their own entries", %{user: alice, todo: todo} do
     bob = create_user!()
 

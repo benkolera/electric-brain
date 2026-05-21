@@ -36,7 +36,12 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     # entries that aren't already there for this week. Running on every load
     # means a recurring todo created mid-week shows up immediately.
     prime_week(user, week_start)
-    entries = read_week_entries(user, week_start)
+
+    # Completed / dismissed entries stay in the DB (so prime's per-cycle
+    # dedup keeps holding) but the planner UI hides them.
+    entries =
+      read_week_entries(user, week_start)
+      |> Enum.reject(&(&1.completed_at || &1.dismissed_at))
 
     {scheduled, floating} = Enum.split_with(entries, & &1.planned_at)
 
@@ -288,6 +293,13 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   defp fixed_schedule_entry?(%{time_block_id: tbid}) when not is_nil(tbid), do: true
   defp fixed_schedule_entry?(_), do: false
 
+  # Recurring todos have per-cycle done/skip semantics — destroy would be
+  # wrong since prime would just recreate the entry on the next page load.
+  defp recurring_entry?(%{todo: %{recurrence: r}}) when r in [:weekly, :biweekly, :monthly],
+    do: true
+
+  defp recurring_entry?(_), do: false
+
   defp selected_entry(_scheduled, nil), do: nil
   defp selected_entry(scheduled, id), do: Enum.find(scheduled, &(&1.id == id))
 
@@ -445,6 +457,32 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     entry = Ash.get!(Entry, id, actor: user)
     delete_from_google_if_synced(user, entry)
     Ash.destroy!(entry, actor: user)
+
+    {:noreply, socket |> load_week() |> push_scheduled_events()}
+  end
+
+  def handle_event("complete_entry", %{"id" => id}, socket) do
+    user = socket.assigns.current_user
+
+    entry = Ash.get!(Entry, id, actor: user)
+    delete_from_google_if_synced(user, entry)
+
+    entry
+    |> Ash.Changeset.for_update(:complete, %{}, actor: user)
+    |> Ash.update!()
+
+    {:noreply, socket |> load_week() |> push_scheduled_events()}
+  end
+
+  def handle_event("dismiss_entry", %{"id" => id}, socket) do
+    user = socket.assigns.current_user
+
+    entry = Ash.get!(Entry, id, actor: user)
+    delete_from_google_if_synced(user, entry)
+
+    entry
+    |> Ash.Changeset.for_update(:dismiss, %{}, actor: user)
+    |> Ash.update!()
 
     {:noreply, socket |> load_week() |> push_scheduled_events()}
   end
@@ -854,15 +892,35 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
                   >
                     <.icon name="hero-arrow-uturn-left-micro" class="size-3.5" /> Unschedule
                   </button>
-                  <button
-                    type="button"
-                    phx-click="remove_entry"
-                    phx-value-id={selected.id}
-                    data-confirm="Remove from this week?"
-                    class="btn btn-xs btn-ghost text-error"
-                  >
-                    <.icon name="hero-x-mark-micro" class="size-3.5" /> Remove
-                  </button>
+                  <%= if recurring_entry?(selected) do %>
+                    <button
+                      type="button"
+                      phx-click="complete_entry"
+                      phx-value-id={selected.id}
+                      class="btn btn-xs btn-ghost text-success"
+                    >
+                      <.icon name="hero-check-micro" class="size-3.5" /> Done
+                    </button>
+                    <button
+                      type="button"
+                      phx-click="dismiss_entry"
+                      phx-value-id={selected.id}
+                      data-confirm="Skip this cycle?"
+                      class="btn btn-xs btn-ghost text-error"
+                    >
+                      <.icon name="hero-x-mark-micro" class="size-3.5" /> Skip
+                    </button>
+                  <% else %>
+                    <button
+                      type="button"
+                      phx-click="remove_entry"
+                      phx-value-id={selected.id}
+                      data-confirm="Remove from this week?"
+                      class="btn btn-xs btn-ghost text-error"
+                    >
+                      <.icon name="hero-x-mark-micro" class="size-3.5" /> Remove
+                    </button>
+                  <% end %>
                 </div>
               </div>
             </div>
@@ -896,15 +954,37 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
                       >
                         <.icon name="hero-arrow-uturn-left-micro" class="size-3.5" />
                       </button>
-                      <button
-                        type="button"
-                        phx-click="remove_entry"
-                        phx-value-id={entry.id}
-                        data-confirm="Remove from this week?"
-                        class="btn btn-xs btn-ghost text-error"
-                      >
-                        <.icon name="hero-x-mark-micro" class="size-3.5" />
-                      </button>
+                      <%= if recurring_entry?(entry) do %>
+                        <button
+                          type="button"
+                          phx-click="complete_entry"
+                          phx-value-id={entry.id}
+                          class="btn btn-xs btn-ghost text-success"
+                          title="Done this cycle"
+                        >
+                          <.icon name="hero-check-micro" class="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          phx-click="dismiss_entry"
+                          phx-value-id={entry.id}
+                          data-confirm="Skip this cycle?"
+                          class="btn btn-xs btn-ghost text-error"
+                          title="Skip this cycle"
+                        >
+                          <.icon name="hero-x-mark-micro" class="size-3.5" />
+                        </button>
+                      <% else %>
+                        <button
+                          type="button"
+                          phx-click="remove_entry"
+                          phx-value-id={entry.id}
+                          data-confirm="Remove from this week?"
+                          class="btn btn-xs btn-ghost text-error"
+                        >
+                          <.icon name="hero-x-mark-micro" class="size-3.5" />
+                        </button>
+                      <% end %>
                     </li>
                   <% end %>
                 </ul>
