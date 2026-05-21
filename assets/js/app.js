@@ -28,7 +28,7 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/electricbrain"
 import topbar from "../vendor/topbar"
-import DrawingHooks from "./drawing"
+import TldrawHooks from "./tldraw_editor"
 import PlannerCalendar from "./planner_calendar"
 import MetricChart from "./metric_chart"
 import PushSubscription from "./push_subscription"
@@ -44,7 +44,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ...DrawingHooks, TimezoneDetect, PlannerCalendar, MetricChart, PushSubscription},
+  hooks: {...colocatedHooks, ...TldrawHooks, TimezoneDetect, PlannerCalendar, MetricChart, PushSubscription},
 })
 
 // Show progress bar on live navigation and form submits

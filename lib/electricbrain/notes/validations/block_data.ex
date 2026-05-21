@@ -26,15 +26,13 @@ defmodule Electricbrain.Notes.Validations.BlockData do
     end
   end
 
-  defp validate_kind(:sketch, data) do
-    drawing = Map.get(data, "drawing") || Map.get(data, :drawing)
-
+  defp validate_kind(:tldraw, data) do
     cond do
-      not is_map(drawing) ->
-        {:error, "sketch block requires a :drawing map"}
+      not Map.has_key?(data, "snapshot") and not Map.has_key?(data, :snapshot) ->
+        {:error, "tldraw block requires a :snapshot key"}
 
-      not is_list(Map.get(drawing, "strokes") || Map.get(drawing, :strokes)) ->
-        {:error, "sketch block :drawing must have a strokes list"}
+      not Map.has_key?(data, "preview_svg") and not Map.has_key?(data, :preview_svg) ->
+        {:error, "tldraw block requires a :preview_svg key"}
 
       true ->
         :ok

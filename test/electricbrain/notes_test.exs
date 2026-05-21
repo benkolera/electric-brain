@@ -63,20 +63,22 @@ defmodule Electricbrain.NotesTest do
       assert block.position == 0
     end
 
-    test "creates a sketch block with drawing", %{user: user} do
+    test "creates a tldraw block with snapshot + preview_svg", %{user: user} do
       note = create_note!(user)
-      drawing = %{"strokes" => [%{"color" => "#fff", "points" => [[0, 0], [1, 1]]}]}
 
       block =
         create_block!(user, %{
           note_id: note.id,
-          kind: :sketch,
-          data: %{"drawing" => drawing},
+          kind: :tldraw,
+          data: %{
+            "snapshot" => %{"document" => %{}},
+            "preview_svg" => "<svg></svg>"
+          },
           position: 1
         })
 
-      assert block.kind == :sketch
-      assert get_in(block.data, ["drawing", "strokes"]) |> length() == 1
+      assert block.kind == :tldraw
+      assert block.data["preview_svg"] == "<svg></svg>"
     end
 
     test "rejects an unknown kind", %{user: user} do
@@ -105,14 +107,28 @@ defmodule Electricbrain.NotesTest do
                |> Ash.create()
     end
 
-    test "rejects sketch without :drawing", %{user: user} do
+    test "rejects tldraw without :snapshot or :preview_svg", %{user: user} do
       note = create_note!(user)
 
       assert {:error, _} =
                NoteBlock
                |> Ash.Changeset.for_create(
                  :create,
-                 %{note_id: note.id, kind: :sketch, data: %{}, position: 0},
+                 %{note_id: note.id, kind: :tldraw, data: %{}, position: 0},
+                 actor: user
+               )
+               |> Ash.create()
+
+      assert {:error, _} =
+               NoteBlock
+               |> Ash.Changeset.for_create(
+                 :create,
+                 %{
+                   note_id: note.id,
+                   kind: :tldraw,
+                   data: %{"snapshot" => %{}},
+                   position: 0
+                 },
                  actor: user
                )
                |> Ash.create()
@@ -174,7 +190,7 @@ defmodule Electricbrain.NotesTest do
 
       assert {:error, _} =
                block
-               |> Ash.Changeset.for_update(:update, %{kind: :sketch, data: %{"body" => "ok"}},
+               |> Ash.Changeset.for_update(:update, %{kind: :tldraw, data: %{"body" => "ok"}},
                  actor: user
                )
                |> Ash.update()

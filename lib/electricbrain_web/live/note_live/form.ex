@@ -53,7 +53,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
     case action do
       "save" -> save(socket)
       "add_block:markdown" -> {:noreply, add_block(socket, :markdown)}
-      "add_block:sketch" -> {:noreply, add_block(socket, :sketch)}
+      "add_block:tldraw" -> {:noreply, add_block(socket, :tldraw)}
       "remove_block:" <> cid -> {:noreply, remove_block(socket, cid)}
       "move_up:" <> cid -> {:noreply, move_block(socket, cid, -1)}
       "move_down:" <> cid -> {:noreply, move_block(socket, cid, +1)}
@@ -94,14 +94,18 @@ defmodule ElectricbrainWeb.NoteLive.Form do
         :markdown ->
           %{"body" => Map.get(submitted, "body", existing.data["body"] || "")}
 
-        :sketch ->
-          drawing =
-            case Jason.decode(Map.get(submitted, "drawing", "")) do
+        :tldraw ->
+          snapshot =
+            case Jason.decode(Map.get(submitted, "snapshot", "")) do
               {:ok, val} when is_map(val) -> val
-              _ -> existing.data["drawing"] || %{"strokes" => []}
+              _ -> existing.data["snapshot"] || %{}
             end
 
-          %{"drawing" => drawing}
+          preview_svg = Map.get(submitted, "preview_svg", existing.data["preview_svg"] || "")
+          %{"snapshot" => snapshot, "preview_svg" => preview_svg}
+
+        _ ->
+          existing.data
       end
 
     %{existing | data: data}
@@ -120,7 +124,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
   end
 
   defp default_data(:markdown), do: %{"body" => ""}
-  defp default_data(:sketch), do: %{"drawing" => %{"strokes" => []}}
+  defp default_data(:tldraw), do: %{"snapshot" => %{}, "preview_svg" => ""}
 
   defp remove_block(socket, cid) do
     blocks = Enum.reject(socket.assigns.blocks, &(&1.client_id == cid))
@@ -298,7 +302,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
           <button
             type="submit"
             name="_action"
-            value="add_block:sketch"
+            value="add_block:tldraw"
             class="btn btn-sm btn-ghost"
           >
             <.icon name="hero-pencil-square-micro" class="size-4" /> Sketch
@@ -388,46 +392,97 @@ defmodule ElectricbrainWeb.NoteLive.Form do
     """
   end
 
-  defp render_block_body(%{block: block} = assigns) when block.kind == :sketch do
+  defp render_block_body(%{block: block} = assigns) when block.kind == :tldraw do
+    cid = block.client_id
+
     assigns =
       assigns
-      |> assign(:drawing_json, Jason.encode!(block.data["drawing"] || %{"strokes" => []}))
-      |> assign(:input_id, "block-#{block.client_id}-drawing")
-      |> assign(:canvas_id, "block-#{block.client_id}-canvas")
-      |> assign(:clear_id, "block-#{block.client_id}-clear")
+      |> assign(:cid, cid)
+      |> assign(:snapshot_input_id, "block-#{cid}-snapshot")
+      |> assign(:svg_input_id, "block-#{cid}-svg")
+      |> assign(:preview_id, "block-#{cid}-preview")
+      |> assign(:dialog_id, "block-#{cid}-dialog")
+      |> assign(:editor_id, "block-#{cid}-editor")
+      |> assign(:open_btn_id, "block-#{cid}-open")
+      |> assign(:close_btn_id, "block-#{cid}-close")
+      |> assign(:snapshot_json, Jason.encode!(block.data["snapshot"] || %{}))
+      |> assign(:preview_svg, block.data["preview_svg"] || "")
 
     ~H"""
     <div class="space-y-2">
-      <div class="flex justify-end">
-        <button type="button" class="btn btn-xs btn-ghost" id={@clear_id}>
-          <.icon name="hero-trash-micro" class="size-4" /> Clear
-        </button>
-      </div>
       <input
         type="hidden"
-        id={@input_id}
-        name={"blocks[#{@block.client_id}][drawing]"}
-        value={@drawing_json}
+        id={@snapshot_input_id}
+        name={"blocks[#{@cid}][snapshot]"}
+        value={@snapshot_json}
       />
+      <input
+        type="hidden"
+        id={@svg_input_id}
+        name={"blocks[#{@cid}][preview_svg]"}
+        value={@preview_svg}
+      />
+
       <div
-        id={@canvas_id}
-        phx-hook="DrawingCanvas"
-        phx-update="ignore"
-        data-target={"##{@input_id}"}
-        data-clear={"##{@clear_id}"}
-        data-initial={@drawing_json}
-        class="w-full aspect-[3/2] bg-base-100 border border-base-300 rounded-box touch-none"
+        id={@preview_id}
+        class="w-full aspect-[3/2] bg-base-100 border border-base-300 rounded-box overflow-hidden flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full"
       >
+        <%= if @preview_svg != "" do %>
+          {Phoenix.HTML.raw(@preview_svg)}
+        <% else %>
+          <span class="text-sm text-neutral-content/60">Empty canvas — tap Open to draw.</span>
+        <% end %>
       </div>
-      <p class="text-xs text-neutral-content/60">
-        Tap and drag to sketch. Touch-friendly on phones and tablets.
-      </p>
+
+      <div class="flex justify-end">
+        <button type="button" id={@open_btn_id} class="btn btn-sm btn-ghost">
+          <.icon name="hero-pencil-square-micro" class="size-4" /> Open editor
+        </button>
+      </div>
+
+      <dialog
+        id={@dialog_id}
+        class="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-base-100 backdrop:bg-black/50"
+      >
+        <div class="flex flex-col h-full">
+          <div class="flex items-center justify-between p-3 border-b border-base-300 bg-base-200">
+            <span class="font-semibold">Sketch</span>
+            <button type="button" id={@close_btn_id} class="btn btn-sm btn-primary">
+              <.icon name="hero-check-micro" class="size-4" /> Done
+            </button>
+          </div>
+          <div
+            id={@editor_id}
+            phx-hook="TldrawEditor"
+            phx-update="ignore"
+            data-dialog={"##{@dialog_id}"}
+            data-open-button={"##{@open_btn_id}"}
+            data-close-button={"##{@close_btn_id}"}
+            data-snapshot-input={"##{@snapshot_input_id}"}
+            data-svg-input={"##{@svg_input_id}"}
+            data-preview={"##{@preview_id}"}
+            class="flex-1"
+          >
+          </div>
+        </div>
+      </dialog>
+    </div>
+    """
+  end
+
+  defp render_block_body(%{block: block} = assigns) do
+    assigns = assign(assigns, :kind, block.kind)
+
+    ~H"""
+    <div class="p-3 bg-base-100 border border-error/40 rounded-box text-sm">
+      Unsupported block kind <code>{@kind}</code> — remove this block to clean up.
     </div>
     """
   end
 
   defp block_kind_label(:markdown), do: "Markdown"
-  defp block_kind_label(:sketch), do: "Sketch"
+  defp block_kind_label(:tldraw), do: "Sketch"
+  defp block_kind_label(kind), do: to_string(kind)
 
   defp block_order_value(blocks) do
     blocks |> Enum.map(& &1.client_id) |> Enum.join(",")

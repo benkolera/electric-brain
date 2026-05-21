@@ -35,7 +35,7 @@ defmodule ElectricbrainWeb.NoteLive.Index do
 
     case Enum.find(blocks, &(&1.kind == :markdown)) do
       nil ->
-        if Enum.any?(blocks, &(&1.kind == :sketch)), do: "(sketch)", else: ""
+        if Enum.any?(blocks, &(&1.kind == :tldraw)), do: "(sketch)", else: ""
 
       block ->
         block.data |> Map.get("body", "") |> String.slice(0, 200)

@@ -164,7 +164,11 @@ A **note** has a title and an ordered list of **blocks**. The two
 block kinds today are:
 
 * **Markdown** — write in markdown; the show page renders it.
-* **Sketch** — a touch-friendly drawing pad for quick diagrams.
+* **Sketch** — a full tldraw whiteboard. Tap **Open editor** to
+  pop a fullscreen canvas; draw, diagram, write with an Apple
+  Pencil, then tap **Done** to capture a preview back into the
+  note. The note page shows the still preview; opening the block
+  again gives you the full editor with pan/zoom.
 
 In the editor, each block has up/down arrows to reorder and a
 trash button to remove it. The buttons below the list add a new

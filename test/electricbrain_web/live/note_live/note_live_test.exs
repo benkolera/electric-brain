@@ -47,13 +47,13 @@ defmodule ElectricbrainWeb.NoteLiveTest do
       assert html =~ "Things to do"
     end
 
-    test "shows (sketch) preview when only a sketch block exists", %{conn: conn, user: user} do
+    test "shows (sketch) preview when only a tldraw block exists", %{conn: conn, user: user} do
       note = create_note!(user, "Doodle")
 
       create_block!(user, %{
         note_id: note.id,
-        kind: :sketch,
-        data: %{"drawing" => %{"strokes" => []}},
+        kind: :tldraw,
+        data: %{"snapshot" => %{}, "preview_svg" => ""},
         position: 0
       })
 
@@ -244,7 +244,7 @@ defmodule ElectricbrainWeb.NoteLiveTest do
   end
 
   describe "show" do
-    test "renders markdown then sketch in order", %{conn: conn, user: user} do
+    test "renders markdown then tldraw in order", %{conn: conn, user: user} do
       note = create_note!(user, "Display")
 
       create_block!(user, %{
@@ -256,14 +256,15 @@ defmodule ElectricbrainWeb.NoteLiveTest do
 
       create_block!(user, %{
         note_id: note.id,
-        kind: :sketch,
-        data: %{"drawing" => %{"strokes" => []}},
+        kind: :tldraw,
+        data: %{"snapshot" => %{}, "preview_svg" => "<svg data-marker=\"tldraw-test\"></svg>"},
         position: 1
       })
 
       {:ok, _view, html} = live(conn, ~p"/notes/#{note.id}")
       assert html =~ "<h1>Heading</h1>"
-      assert html =~ ~s|phx-hook="DrawingView"|
+      assert html =~ "tldraw-view-"
+      assert html =~ "tldraw-test"
     end
   end
 end

@@ -61,19 +61,32 @@ defmodule ElectricbrainWeb.NoteLive.Show do
     """
   end
 
-  defp render_block(assigns, %{kind: :sketch} = block) do
+  defp render_block(assigns, %{kind: :tldraw} = block) do
     assigns =
       assigns
       |> assign(:block_id, block.id)
-      |> assign(:drawing_json, Jason.encode!(block.data["drawing"] || %{}))
+      |> assign(:preview_svg, block.data["preview_svg"] || "")
 
     ~H"""
     <div
-      id={"drawing-view-#{@block_id}"}
-      phx-hook="DrawingView"
-      data-drawing={@drawing_json}
-      class="w-full aspect-[3/2] bg-base-200 border border-base-300 rounded-box"
+      id={"tldraw-view-#{@block_id}"}
+      class="w-full aspect-[3/2] bg-base-200 border border-base-300 rounded-box overflow-hidden flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full"
     >
+      <%= if @preview_svg != "" do %>
+        {Phoenix.HTML.raw(@preview_svg)}
+      <% else %>
+        <span class="text-sm text-neutral-content/60">Empty sketch</span>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp render_block(assigns, block) do
+    assigns = assign(assigns, :kind, block.kind)
+
+    ~H"""
+    <div class="p-3 bg-base-100 border border-error/40 rounded-box text-sm">
+      Unsupported block kind <code>{@kind}</code>.
     </div>
     """
   end
