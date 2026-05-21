@@ -60,6 +60,7 @@ config :electricbrain,
     Electricbrain.Planner,
     Electricbrain.Notes,
     Electricbrain.Metrics,
+    Electricbrain.Moments,
     Electricbrain.Accounts
   ]
 
