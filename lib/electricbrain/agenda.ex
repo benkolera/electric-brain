@@ -169,28 +169,9 @@ defmodule Electricbrain.Agenda do
   end
 
   defp to_item(entry) do
-    duration = resolve_duration(entry)
+    duration = Electricbrain.Planner.EntryTarget.duration_minutes(entry)
     end_time = DateTime.add(entry.planned_at, duration * 60, :second)
     %{entry: entry, end_time: end_time, duration_minutes: duration}
-  end
-
-  defp resolve_duration(entry) do
-    cond do
-      is_integer(entry.duration_minutes) ->
-        entry.duration_minutes
-
-      entry.habit && is_integer(entry.habit.duration_minutes) ->
-        entry.habit.duration_minutes
-
-      entry.todo && is_integer(entry.todo.duration_minutes) ->
-        entry.todo.duration_minutes
-
-      entry.time_block && is_integer(entry.time_block.duration_minutes) ->
-        entry.time_block.duration_minutes
-
-      true ->
-        60
-    end
   end
 
   @doc """

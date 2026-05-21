@@ -72,16 +72,6 @@ defmodule Electricbrain.Habits.Availability do
     end
   end
 
-  @doc """
-  Minutes between start_time and end_time. End <= start wraps past midnight, so
-  22:00 → 06:00 is 480 minutes.
-  """
-  def duration_minutes(%{start_time: start_time, end_time: end_time}) do
-    diff = Time.diff(end_time, start_time, :second)
-    div(if(diff <= 0, do: diff + 86_400, else: diff), 60)
-  end
-
-  @doc "1 for a single-day window, 7 for an every-day (nil day_of_week) window."
-  def occurrences_per_week(%{day_of_week: nil}), do: 7
-  def occurrences_per_week(%{day_of_week: _}), do: 1
+  defdelegate duration_minutes(availability), to: Electricbrain.Availability
+  defdelegate occurrences_per_week(availability), to: Electricbrain.Availability
 end

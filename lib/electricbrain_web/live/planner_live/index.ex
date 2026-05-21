@@ -8,6 +8,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   alias Electricbrain.GoogleCalendar
   alias Electricbrain.Habits.Habit
   alias Electricbrain.Planner.Entry
+  alias Electricbrain.Planner.EntryTarget
   alias Electricbrain.Todos.Todo
 
   @impl true
@@ -227,14 +228,10 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   end
 
   defp entry_color_id(entry, categories_by_id) do
-    schedulable = entry_schedulable(entry)
-    category_id = schedulable && schedulable.category_id
-    Colors.resolve_id(categories_by_id, category_id)
+    Colors.resolve_id(categories_by_id, EntryTarget.category_id(entry))
   end
 
-  defp entry_schedulable(entry) do
-    entry.todo || entry.habit || entry.time_block
-  end
+  defp entry_schedulable(entry), do: EntryTarget.schedulable(entry)
 
   # Returns [{start_utc, end_utc}] split at midnight in the user's timezone so
   # Schedule-X renders each day-slice in its time-grid column instead of as a
@@ -267,9 +264,7 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     end
   end
 
-  defp kind_label(%{todo_id: tid}) when not is_nil(tid), do: "todo"
-  defp kind_label(%{habit_id: hid}) when not is_nil(hid), do: "habit"
-  defp kind_label(%{time_block_id: tbid}) when not is_nil(tbid), do: "time_block"
+  defp kind_label(entry), do: EntryTarget.kind_label(entry)
 
   defp candidate_kind(%{kind: :todo}), do: :todo
   defp candidate_kind(%{kind: :habit}), do: :habit
@@ -277,36 +272,16 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   defp candidate_label(%{kind: :todo, title: t}), do: t
   defp candidate_label(%{kind: :habit, title: t}), do: t
 
-  defp entry_title(entry) do
-    cond do
-      entry.todo -> entry.todo.title
-      entry.habit -> entry.habit.title
-      entry.time_block -> entry.time_block.title
-      true -> "(untitled)"
-    end
-  end
+  defp entry_title(entry), do: EntryTarget.title(entry)
 
-  # Time-block entries hide from the floating-pool sidebar (they're
-  # auto-primed onto the calendar from availability windows; the user
-  # doesn't drag them around). Kept the function name so callers don't
-  # need updating; "fixed schedule" still names the concept correctly.
-  defp fixed_schedule_entry?(%{time_block_id: tbid}) when not is_nil(tbid), do: true
-  defp fixed_schedule_entry?(_), do: false
+  defp fixed_schedule_entry?(entry), do: EntryTarget.time_block?(entry)
 
-  # Recurring todos have per-cycle done/skip semantics — destroy would be
-  # wrong since prime would just recreate the entry on the next page load.
-  defp recurring_entry?(%{todo: %{recurrence: r}}) when r in [:weekly, :biweekly, :monthly],
-    do: true
-
-  defp recurring_entry?(_), do: false
+  defp recurring_entry?(entry), do: EntryTarget.recurring?(entry)
 
   defp selected_entry(_scheduled, nil), do: nil
   defp selected_entry(scheduled, id), do: Enum.find(scheduled, &(&1.id == id))
 
-  defp entry_duration_minutes(entry) do
-    schedulable = entry_schedulable(entry)
-    entry.duration_minutes || (schedulable && schedulable.duration_minutes) || 60
-  end
+  defp entry_duration_minutes(entry), do: EntryTarget.duration_minutes(entry)
 
   # Returns a 0-or-1 element list for the armed entry's habit. Time
   # blocks live on a separate id (entry.time_block_id) so they never

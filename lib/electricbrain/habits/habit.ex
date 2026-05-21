@@ -3,7 +3,8 @@ defmodule Electricbrain.Habits.Habit do
     otp_app: :electricbrain,
     domain: Electricbrain.Habits,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    fragments: [Electricbrain.Schedulable.Fragment]
 
   postgres do
     table "habits"
@@ -82,25 +83,6 @@ defmodule Electricbrain.Habits.Habit do
     attribute :period, :atom do
       public? true
       constraints one_of: [:day, :week, :month]
-    end
-
-    attribute :duration_minutes, :integer do
-      public? true
-      constraints min: 0
-    end
-
-    attribute :buffer_before_minutes, :integer do
-      public? true
-      default 0
-      allow_nil? false
-      constraints min: 0
-    end
-
-    attribute :buffer_after_minutes, :integer do
-      public? true
-      default 0
-      allow_nil? false
-      constraints min: 0
     end
 
     # Atomic Habits ch. 2 — every completion is a vote for who you are.

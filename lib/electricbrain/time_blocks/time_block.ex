@@ -3,7 +3,8 @@ defmodule Electricbrain.TimeBlocks.TimeBlock do
     otp_app: :electricbrain,
     domain: Electricbrain.TimeBlocks,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    fragments: [Electricbrain.Schedulable.Fragment]
 
   postgres do
     table "time_blocks"
@@ -62,25 +63,6 @@ defmodule Electricbrain.TimeBlocks.TimeBlock do
     attribute :title, :string do
       allow_nil? false
       public? true
-    end
-
-    attribute :duration_minutes, :integer do
-      public? true
-      constraints min: 0
-    end
-
-    attribute :buffer_before_minutes, :integer do
-      public? true
-      default 0
-      allow_nil? false
-      constraints min: 0
-    end
-
-    attribute :buffer_after_minutes, :integer do
-      public? true
-      default 0
-      allow_nil? false
-      constraints min: 0
     end
 
     # Optional weekly target — interpreted via `target_kind`. nil

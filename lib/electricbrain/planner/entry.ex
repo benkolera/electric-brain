@@ -1,4 +1,39 @@
 defmodule Electricbrain.Planner.Entry do
+  @moduledoc """
+  A planner Entry pins a schedulable (todo / habit / time-block) to a week,
+  optionally to a specific `planned_at`. The check constraint guarantees
+  exactly one of `todo_id`, `habit_id`, `time_block_id` is set.
+
+  ## Completion semantics (four overlapping concepts)
+
+  The app tracks "did the user do this?" in four places, each with a
+  different purpose. Knowing which fires when prevents UX bugs.
+
+    * `Habits.Completion` (separate table) — one row per habit instance
+      done. Drives the period streak count vs `habit.min_count`. Created
+      from the habit page and from the home agenda's green check on a
+      non-recurring habit entry.
+
+    * `Todos.Todo.status` (enum `:pending | :in_progress | :done`) —
+      lifecycle on the parent todo. For one-off todos, "done" means
+      "permanently done". For recurring todos this would be the wrong
+      semantic; the green-check on a recurring entry goes to
+      `Entry.completed_at` instead, leaving the parent recurring.
+
+    * `Planner.Entry.completed_at` — per-cycle / per-instance done.
+      Hidden from agenda + planner views while the row stays in the DB
+      so prime's dedup keeps holding. Cleared by `:uncomplete` if the
+      user changes their mind.
+
+    * `Metrics.Measurement` — numeric reading captured at the moment of
+      completing a metric-attached habit. Not a "done" flag in itself
+      but the artefact that the completion produced.
+
+  When extending the planner, ask which of these is the right signal —
+  more than one can fire for a single user action (completing a habit
+  with an attached metric creates a Completion *and* a Measurement).
+  """
+
   use Ash.Resource,
     otp_app: :electricbrain,
     domain: Electricbrain.Planner,

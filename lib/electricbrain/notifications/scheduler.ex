@@ -95,11 +95,9 @@ defmodule Electricbrain.Notifications.Scheduler do
   end
 
   defp title_for(entry) do
-    cond do
-      entry.todo -> entry.todo.title
-      entry.habit -> entry.habit.title
-      entry.time_block -> entry.time_block.title
-      true -> "Scheduled"
+    case Electricbrain.Planner.EntryTarget.title(entry) do
+      "(untitled)" -> "Scheduled"
+      title -> title
     end
   end
 

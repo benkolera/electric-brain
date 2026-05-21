@@ -187,7 +187,7 @@ defmodule Electricbrain.GoogleCalendar do
   end
 
   defp event_body(entry, color_id) do
-    schedulable = entry.todo || entry.habit
+    schedulable = Electricbrain.Planner.EntryTarget.schedulable(entry)
 
     cond do
       is_nil(entry.planned_at) ->
@@ -197,22 +197,10 @@ defmodule Electricbrain.GoogleCalendar do
         {:error, :no_target}
 
       true ->
-        # Per-entry override beats the schedulable's default (see
-        # Planner.Entry.duration_minutes — fixed-schedule habits like
-        # Sleep snapshot their availability window length onto the
-        # entry, and the habit itself has nil duration_minutes).
-        duration_minutes =
-          entry.duration_minutes || schedulable.duration_minutes || 60
-
+        duration_minutes = Electricbrain.Planner.EntryTarget.duration_minutes(entry)
         start_dt = entry.planned_at
         end_dt = DateTime.add(start_dt, duration_minutes * 60, :second)
-
-        title =
-          cond do
-            entry.todo -> entry.todo.title
-            entry.habit -> entry.habit.title
-            true -> "(untitled)"
-          end
+        title = Electricbrain.Planner.EntryTarget.title(entry)
 
         base = %{
           "summary" => title,

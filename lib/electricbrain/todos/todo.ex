@@ -3,7 +3,8 @@ defmodule Electricbrain.Todos.Todo do
     otp_app: :electricbrain,
     domain: Electricbrain.Todos,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    fragments: [Electricbrain.Schedulable.Fragment]
 
   postgres do
     table "todos"
@@ -112,25 +113,6 @@ defmodule Electricbrain.Todos.Todo do
 
     attribute :due_at, :utc_datetime do
       public? true
-    end
-
-    attribute :duration_minutes, :integer do
-      public? true
-      constraints min: 0
-    end
-
-    attribute :buffer_before_minutes, :integer do
-      public? true
-      default 0
-      allow_nil? false
-      constraints min: 0
-    end
-
-    attribute :buffer_after_minutes, :integer do
-      public? true
-      default 0
-      allow_nil? false
-      constraints min: 0
     end
 
     # Recurring todos: when set, the planner's prime_week creates an

@@ -5,9 +5,13 @@ defmodule ElectricbrainWeb.AgendaHelpers do
   `ElectricbrainWeb.Layouts` and the agenda view in `ElectricbrainWeb.HomeLive`.
   """
 
-  def item_title(%{entry: %{habit: %{title: t}}}) when is_binary(t), do: t
-  def item_title(%{entry: %{todo: %{title: t}}}) when is_binary(t), do: t
-  def item_title(%{entry: %{time_block: %{title: t}}}) when is_binary(t), do: t
+  def item_title(%{entry: entry}) do
+    case Electricbrain.Planner.EntryTarget.title(entry) do
+      "(untitled)" -> "Scheduled"
+      title -> title
+    end
+  end
+
   def item_title(_), do: "Scheduled"
 
   def format_time_range(%{entry: %{planned_at: start}, end_time: finish}, tz) do
