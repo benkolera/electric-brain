@@ -42,5 +42,28 @@ defmodule Electricbrain.Notes.Validations.BlockData do
     end
   end
 
+  defp validate_kind(:image, data) do
+    cond do
+      not present_string?(data, "key") ->
+        {:error, "image block requires a non-empty :key"}
+
+      not present_string?(data, "thumb_key") ->
+        {:error, "image block requires a non-empty :thumb_key"}
+
+      not present_string?(data, "mime_type") ->
+        {:error, "image block requires a :mime_type"}
+
+      true ->
+        :ok
+    end
+  end
+
   defp validate_kind(_, _), do: :ok
+
+  defp present_string?(data, key) do
+    case Map.get(data, key) || Map.get(data, String.to_atom(key)) do
+      v when is_binary(v) and v != "" -> true
+      _ -> false
+    end
+  end
 end

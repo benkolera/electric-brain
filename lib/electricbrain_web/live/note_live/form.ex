@@ -1,6 +1,8 @@
 defmodule ElectricbrainWeb.NoteLive.Form do
   use ElectricbrainWeb, :live_view
 
+  alias Electricbrain.Notes.ImageStore
+  alias Electricbrain.Notes.Images
   alias Electricbrain.Notes.Note
   alias Electricbrain.Notes.NoteBlock
 
@@ -56,6 +58,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
       "save" -> save(socket)
       "add_block:markdown" -> {:noreply, socket |> add_block(:markdown) |> mark_dirty()}
       "add_block:excalidraw" -> {:noreply, socket |> add_block(:excalidraw) |> mark_dirty()}
+      "add_block:image" -> {:noreply, socket |> add_block(:image) |> mark_dirty()}
       "remove_block:" <> cid -> {:noreply, socket |> remove_block(cid) |> mark_dirty()}
       "move_up:" <> cid -> {:noreply, socket |> move_block(cid, -1) |> mark_dirty()}
       "move_down:" <> cid -> {:noreply, socket |> move_block(cid, +1) |> mark_dirty()}
@@ -117,6 +120,17 @@ defmodule ElectricbrainWeb.NoteLive.Form do
             "preview_svg_dark" => dark
           }
 
+        :image ->
+          # `upload` is a transient data URL from the JS hook; persisted-key
+          # fields ("key", "thumb_key", ...) live in `existing.data` and are
+          # rewritten on save (see persist/3).
+          upload = Map.get(submitted, "upload", existing.data["upload"] || "")
+          alt = Map.get(submitted, "alt", existing.data["alt"] || "")
+
+          existing.data
+          |> Map.put("alt", alt)
+          |> put_if_present("upload", upload)
+
         _ ->
           existing.data
       end
@@ -140,6 +154,11 @@ defmodule ElectricbrainWeb.NoteLive.Form do
 
   defp default_data(:excalidraw),
     do: %{"snapshot" => %{}, "preview_svg_light" => "", "preview_svg_dark" => ""}
+
+  defp default_data(:image), do: %{"alt" => ""}
+
+  defp put_if_present(map, _key, ""), do: map
+  defp put_if_present(map, key, value), do: Map.put(map, key, value)
 
   defp remove_block(socket, cid) do
     blocks = Enum.reject(socket.assigns.blocks, &(&1.client_id == cid))
@@ -223,7 +242,8 @@ defmodule ElectricbrainWeb.NoteLive.Form do
     blocks
     |> Enum.with_index()
     |> Enum.each(fn {block, idx} ->
-      attrs = %{position: idx, kind: block.kind, data: block.data}
+      data = prepare_data_for_save(block, note.id)
+      attrs = %{position: idx, kind: block.kind, data: data}
 
       case block.server_id do
         nil ->
@@ -243,6 +263,46 @@ defmodule ElectricbrainWeb.NoteLive.Form do
     err in Ash.Error.Invalid ->
       {:error, ash_error_messages(err)}
   end
+
+  # For image blocks, swap the transient data-URL `upload` for the persisted
+  # key fields (storing the bytes via Notes.Images). The old key (if any) is
+  # deleted to avoid orphans in the bucket.
+  defp prepare_data_for_save(%{kind: :image, data: data}, note_id) do
+    case Map.get(data, "upload") do
+      url when is_binary(url) and url != "" ->
+        case Images.put_from_data_url(url, note_id) do
+          {:ok, new_fields} ->
+            delete_existing_image(data)
+
+            data
+            |> Map.drop(["upload"])
+            |> Map.merge(new_fields)
+
+          {:error, reason} ->
+            raise Ash.Error.Invalid,
+              errors: [
+                %Ash.Error.Changes.InvalidAttribute{
+                  field: :data,
+                  message: "image upload failed: #{inspect(reason)}"
+                }
+              ]
+        end
+
+      _ ->
+        Map.drop(data, ["upload"])
+    end
+  end
+
+  defp prepare_data_for_save(%{data: data}, _note_id), do: data
+
+  defp delete_existing_image(%{"key" => key, "thumb_key" => thumb_key} = _data)
+       when is_binary(key) and is_binary(thumb_key) and key != "" do
+    _ = ImageStore.delete(key)
+    _ = ImageStore.delete(thumb_key)
+    :ok
+  end
+
+  defp delete_existing_image(_), do: :ok
 
   defp ash_error_messages(%Ash.Error.Invalid{errors: errors}) do
     Enum.map(errors, fn
@@ -348,6 +408,14 @@ defmodule ElectricbrainWeb.NoteLive.Form do
             class="btn btn-sm btn-ghost"
           >
             <.icon name="hero-pencil-square-micro" class="size-4" /> Sketch
+          </button>
+          <button
+            type="submit"
+            name="_action"
+            value="add_block:image"
+            class="btn btn-sm btn-ghost"
+          >
+            <.icon name="hero-photo-micro" class="size-4" /> Image
           </button>
         </div>
 
@@ -542,6 +610,89 @@ defmodule ElectricbrainWeb.NoteLive.Form do
     """
   end
 
+  defp render_block_body(%{block: block} = assigns) when block.kind == :image do
+    cid = block.client_id
+    saved_src = saved_image_src(block.data)
+    has_saved = saved_src != ""
+
+    assigns =
+      assigns
+      |> assign(:cid, cid)
+      |> assign(:upload_input_id, "block-#{cid}-upload")
+      |> assign(:file_input_id, "block-#{cid}-file")
+      |> assign(:preview_img_id, "block-#{cid}-preview")
+      |> assign(:replace_label_id, "block-#{cid}-replace-label")
+      |> assign(:hook_id, "block-#{cid}-image")
+      |> assign(:saved_src, saved_src)
+      |> assign(:has_saved, has_saved)
+      |> assign(:alt, block.data["alt"] || "")
+
+    ~H"""
+    <div
+      id={@hook_id}
+      phx-hook="ImageBlock"
+      phx-update="ignore"
+      data-upload-input={"##{@upload_input_id}"}
+      data-file-input={"##{@file_input_id}"}
+      data-preview-img={"##{@preview_img_id}"}
+      data-replace-label={"##{@replace_label_id}"}
+      class="space-y-2"
+    >
+      <input
+        type="hidden"
+        id={@upload_input_id}
+        name={"blocks[#{@cid}][upload]"}
+        value=""
+      />
+
+      <div class="w-full bg-base-100 border border-base-300 rounded-box overflow-hidden flex items-center justify-center min-h-[12rem]">
+        <img
+          id={@preview_img_id}
+          src={@saved_src}
+          alt={@alt}
+          class={[
+            "max-w-full max-h-[60vh] object-contain",
+            if(@has_saved, do: "", else: "hidden")
+          ]}
+        />
+        <span
+          id={"#{@preview_img_id}-placeholder"}
+          class={[
+            "text-sm text-neutral-content/60 p-6",
+            if(@has_saved, do: "hidden", else: "")
+          ]}
+        >
+          No image yet — choose one below.
+        </span>
+      </div>
+
+      <div class="flex items-center justify-between gap-2">
+        <input
+          type="text"
+          name={"blocks[#{@cid}][alt]"}
+          value={@alt}
+          placeholder="Alt text (for accessibility)"
+          class="input input-sm input-bordered flex-1 bg-base-200"
+        />
+        <label
+          for={@file_input_id}
+          id={@replace_label_id}
+          class="btn btn-sm btn-ghost cursor-pointer"
+        >
+          <.icon name="hero-photo-micro" class="size-4" />
+          {if @has_saved, do: "Replace", else: "Choose image"}
+        </label>
+        <input
+          type="file"
+          id={@file_input_id}
+          accept="image/*"
+          class="hidden"
+        />
+      </div>
+    </div>
+    """
+  end
+
   defp render_block_body(%{block: block} = assigns) do
     assigns = assign(assigns, :kind, block.kind)
 
@@ -552,8 +703,18 @@ defmodule ElectricbrainWeb.NoteLive.Form do
     """
   end
 
+  defp saved_image_src(%{"key" => key}) when is_binary(key) and key != "" do
+    case ImageStore.presigned_url(key) do
+      {:ok, url} -> url
+      _ -> ""
+    end
+  end
+
+  defp saved_image_src(_), do: ""
+
   defp block_kind_label(:markdown), do: "Markdown"
   defp block_kind_label(:excalidraw), do: "Sketch"
+  defp block_kind_label(:image), do: "Image"
   defp block_kind_label(kind), do: to_string(kind)
 
   defp block_order_value(blocks) do

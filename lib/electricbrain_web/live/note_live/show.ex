@@ -1,6 +1,7 @@
 defmodule ElectricbrainWeb.NoteLive.Show do
   use ElectricbrainWeb, :live_view
 
+  alias Electricbrain.Notes.ImageStore
   alias Electricbrain.Notes.Note
 
   @impl true
@@ -96,6 +97,30 @@ defmodule ElectricbrainWeb.NoteLive.Show do
     """
   end
 
+  defp render_block(assigns, %{kind: :image} = block) do
+    assigns =
+      assigns
+      |> assign(:src, presigned(block.data["key"]))
+      |> assign(:alt, block.data["alt"] || "")
+      |> assign(:width, block.data["width"])
+      |> assign(:height, block.data["height"])
+
+    ~H"""
+    <%= if @src != "" do %>
+      <figure class="flex justify-center">
+        <img
+          src={@src}
+          alt={@alt}
+          width={@width}
+          height={@height}
+          loading="lazy"
+          class="max-w-full max-h-[80vh] rounded-box"
+        />
+      </figure>
+    <% end %>
+    """
+  end
+
   defp render_block(assigns, block) do
     assigns = assign(assigns, :kind, block.kind)
 
@@ -105,4 +130,13 @@ defmodule ElectricbrainWeb.NoteLive.Show do
     </div>
     """
   end
+
+  defp presigned(key) when is_binary(key) and key != "" do
+    case ImageStore.presigned_url(key) do
+      {:ok, url} -> url
+      _ -> ""
+    end
+  end
+
+  defp presigned(_), do: ""
 end

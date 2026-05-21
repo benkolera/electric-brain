@@ -23,6 +23,19 @@ end
 config :electricbrain, ElectricbrainWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# Note image storage. Adapter is S3 when NOTES_BUCKET is set; otherwise the
+# in-process Memory adapter (suitable for tests and unconfigured dev). AWS
+# credentials come from the default chain (ECS task role, ~/.aws, env vars).
+if notes_bucket = System.get_env("NOTES_BUCKET") do
+  config :electricbrain,
+    notes_image_store_adapter: Electricbrain.Notes.ImageStore.S3,
+    notes_image_store: [
+      bucket: notes_bucket,
+      region: System.get_env("AWS_REGION") || "ap-southeast-2",
+      presign_ttl: String.to_integer(System.get_env("NOTES_PRESIGN_TTL", "3600"))
+    ]
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

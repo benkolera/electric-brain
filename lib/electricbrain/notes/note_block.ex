@@ -15,7 +15,7 @@ defmodule Electricbrain.Notes.NoteBlock do
   end
 
   actions do
-    defaults [:read, :destroy]
+    defaults [:read]
 
     create :create do
       accept [:note_id, :position, :kind, :data]
@@ -25,6 +25,12 @@ defmodule Electricbrain.Notes.NoteBlock do
     update :update do
       accept [:position, :kind, :data]
       require_atomic? false
+    end
+
+    destroy :destroy do
+      primary? true
+      require_atomic? false
+      change Electricbrain.Notes.Changes.CleanupImageBlock
     end
   end
 
@@ -59,7 +65,7 @@ defmodule Electricbrain.Notes.NoteBlock do
     attribute :kind, :atom do
       allow_nil? false
       public? true
-      constraints one_of: [:markdown, :excalidraw]
+      constraints one_of: [:markdown, :excalidraw, :image]
     end
 
     attribute :data, :map do

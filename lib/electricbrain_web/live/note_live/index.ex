@@ -4,6 +4,7 @@ defmodule ElectricbrainWeb.NoteLive.Index do
   require Ash.Query
 
   alias Electricbrain.Notes
+  alias Electricbrain.Notes.ImageStore
   alias Electricbrain.Notes.Note
 
   @impl true
@@ -30,16 +31,65 @@ defmodule ElectricbrainWeb.NoteLive.Index do
     |> Ash.read!(actor: user, domain: Notes)
   end
 
-  defp note_preview(note) do
+  defp preview_for(note) do
     blocks = note.blocks || []
 
-    case Enum.find(blocks, &(&1.kind == :markdown)) do
-      nil ->
-        if Enum.any?(blocks, &(&1.kind == :excalidraw)), do: "(sketch)", else: ""
+    cond do
+      block = Enum.find(blocks, &(&1.kind == :markdown)) ->
+        {:text, block.data |> Map.get("body", "") |> String.slice(0, 200)}
 
-      block ->
-        block.data |> Map.get("body", "") |> String.slice(0, 200)
+      block = Enum.find(blocks, &(&1.kind == :image)) ->
+        case presigned_thumb(block.data) do
+          {:ok, url} -> {:image, url, block.data["alt"] || ""}
+          :error -> {:label, "(image)"}
+        end
+
+      Enum.any?(blocks, &(&1.kind == :excalidraw)) ->
+        {:label, "(sketch)"}
+
+      true ->
+        {:text, ""}
     end
+  end
+
+  defp presigned_thumb(%{"thumb_key" => key}) when is_binary(key) and key != "" do
+    case ImageStore.presigned_url(key) do
+      {:ok, url} -> {:ok, url}
+      _ -> :error
+    end
+  end
+
+  defp presigned_thumb(_), do: :error
+
+  attr :preview, :any, required: true
+
+  defp note_preview(%{preview: {:image, url, alt}} = assigns) do
+    assigns = assigns |> assign(:url, url) |> assign(:alt, alt)
+
+    ~H"""
+    <img
+      src={@url}
+      alt={@alt}
+      loading="lazy"
+      class="w-full h-32 object-cover rounded-box"
+    />
+    """
+  end
+
+  defp note_preview(%{preview: {:label, label}} = assigns) do
+    assigns = assign(assigns, :label, label)
+
+    ~H"""
+    <p class="text-sm text-neutral-content/60 italic">{@label}</p>
+    """
+  end
+
+  defp note_preview(%{preview: {:text, text}} = assigns) do
+    assigns = assign(assigns, :text, text)
+
+    ~H"""
+    <p class="text-sm text-neutral-content/70 line-clamp-3 whitespace-pre-wrap">{@text}</p>
+    """
   end
 
   @impl true
@@ -65,9 +115,8 @@ defmodule ElectricbrainWeb.NoteLive.Index do
                   {note.title}
                 </.link>
               </h3>
-              <p class="text-sm text-neutral-content/70 line-clamp-3 whitespace-pre-wrap">
-                {note_preview(note)}
-              </p>
+              <.note_preview preview={preview_for(note)} />
+
               <div class="card-actions justify-end mt-2">
                 <.link navigate={~p"/notes/#{note.id}/edit"} class="btn btn-xs btn-ghost">
                   Edit

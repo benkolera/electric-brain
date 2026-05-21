@@ -83,6 +83,89 @@ defmodule Electricbrain.NotesTest do
       assert block.data["preview_svg_dark"] == "<svg id='dark'></svg>"
     end
 
+    test "creates an image block with key/thumb_key/mime_type", %{user: user} do
+      note = create_note!(user)
+
+      block =
+        create_block!(user, %{
+          note_id: note.id,
+          kind: :image,
+          data: %{
+            "key" => "notes/#{note.id}/abc.jpg",
+            "thumb_key" => "notes/#{note.id}/abc.thumb.jpg",
+            "mime_type" => "image/jpeg",
+            "width" => 800,
+            "height" => 600,
+            "alt" => "a photo"
+          },
+          position: 2
+        })
+
+      assert block.kind == :image
+      assert block.data["key"] == "notes/#{note.id}/abc.jpg"
+      assert block.data["thumb_key"] == "notes/#{note.id}/abc.thumb.jpg"
+      assert block.data["alt"] == "a photo"
+    end
+
+    test "rejects image block missing required keys", %{user: user} do
+      note = create_note!(user)
+
+      assert {:error, _} =
+               NoteBlock
+               |> Ash.Changeset.for_create(
+                 :create,
+                 %{note_id: note.id, kind: :image, data: %{"alt" => "no key"}, position: 0},
+                 actor: user
+               )
+               |> Ash.create()
+
+      assert {:error, _} =
+               NoteBlock
+               |> Ash.Changeset.for_create(
+                 :create,
+                 %{
+                   note_id: note.id,
+                   kind: :image,
+                   data: %{"key" => "k", "thumb_key" => ""},
+                   position: 0
+                 },
+                 actor: user
+               )
+               |> Ash.create()
+    end
+
+    test "destroying an image block deletes its bytes from ImageStore", %{user: user} do
+      alias Electricbrain.Notes.ImageStore
+      alias Electricbrain.Notes.ImageStore.Memory
+
+      Memory.reset()
+      note = create_note!(user)
+
+      key = "notes/#{note.id}/img.jpg"
+      thumb = "notes/#{note.id}/img.thumb.jpg"
+      :ok = ImageStore.put(key, "MAIN", "image/jpeg")
+      :ok = ImageStore.put(thumb, "THUMB", "image/jpeg")
+
+      block =
+        create_block!(user, %{
+          note_id: note.id,
+          kind: :image,
+          data: %{
+            "key" => key,
+            "thumb_key" => thumb,
+            "mime_type" => "image/jpeg",
+            "width" => 10,
+            "height" => 10
+          },
+          position: 0
+        })
+
+      Ash.destroy!(block, actor: user)
+
+      assert Memory.fetch(key) == nil
+      assert Memory.fetch(thumb) == nil
+    end
+
     test "rejects an unknown kind", %{user: user} do
       note = create_note!(user)
 

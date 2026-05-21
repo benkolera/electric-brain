@@ -77,6 +77,11 @@ defmodule Electricbrain.MixProject do
       {:bandit, "~> 1.5"},
       {:mdex, "~> 0.5"},
       {:web_push_elixir, "~> 0.8"},
+      {:ex_aws, "~> 2.5"},
+      {:ex_aws_s3, "~> 2.5"},
+      {:hackney, "~> 1.20"},
+      {:sweet_xml, "~> 0.7"},
+      {:image, "~> 0.67"},
       {:igniter, "~> 0.5", only: [:dev, :test]},
       {:sourceror, "~> 1.8", only: [:dev, :test]}
     ]

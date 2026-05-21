@@ -46,10 +46,10 @@ Single Phoenix app — no umbrella. Deployed as half of the
   its own Ash domain so habit features (streaks, identity) don't
   conflict.
 - **Notes** — composed from an ordered list of typed blocks.
-  Markdown blocks for prose; sketch blocks open a fullscreen
-  Excalidraw canvas (Apple Pencil-friendly) and store a still
-  preview back in the note. New block kinds drop in with one
-  enum value.
+  Markdown for prose; sketch blocks open a fullscreen Excalidraw
+  canvas (Apple Pencil-friendly) and store a still preview back
+  in the note; image blocks embed downscaled photos inline. New
+  block kinds drop in with one enum value.
 - **Planner** — weekly calendar (Schedule-X), drag-and-drop scheduling
   of todos/habits from a floating pool onto a time grid. Auto-primed
   with time-block availability each week. Per-category planned-time

@@ -160,8 +160,8 @@ weekly plan honest.
 
 ## Notes — block-composed freeform pages
 
-A **note** has a title and an ordered list of **blocks**. The two
-block kinds today are:
+A **note** has a title and an ordered list of **blocks**. Block
+kinds today:
 
 * **Markdown** — write in markdown; the show page renders it.
 * **Sketch** — a full Excalidraw whiteboard. Tap **Open editor**
@@ -169,6 +169,9 @@ block kinds today are:
   Pencil, then tap **Done** to capture a preview back into the
   note. The note page shows the still preview; opening the block
   again gives you the full editor with pan/zoom.
+* **Image** — pick a photo or screenshot; the browser downscales
+  it (max 1600px, JPEG q=0.85) and embeds it inline in the note.
+  Add alt text in the field below the preview.
 
 In the editor, each block has up/down arrows to reorder and a
 trash button to remove it. The buttons below the list add a new

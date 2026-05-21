@@ -1,6 +1,7 @@
 import Config
 config :electricbrain, token_signing_secret: "AipXgxZip7mQmVkrTEaKaZk8MWlP+++J"
 config :electricbrain, :notifications, enabled: false
+config :electricbrain, :notes_image_store_adapter, Electricbrain.Notes.ImageStore.Memory
 config :bcrypt_elixir, log_rounds: 1
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
