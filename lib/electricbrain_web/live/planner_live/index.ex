@@ -34,15 +34,11 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     user = socket.assigns.current_user
     week_start = socket.assigns.week_start
 
+    # prime is idempotent — it only inserts the time-block and recurring-todo
+    # entries that aren't already there for this week. Running on every load
+    # means a recurring todo created mid-week shows up immediately.
+    prime_week(user, week_start)
     entries = read_week_entries(user, week_start)
-
-    entries =
-      if entries == [] do
-        prime_week(user, week_start)
-        read_week_entries(user, week_start)
-      else
-        entries
-      end
 
     {scheduled, floating} = Enum.split_with(entries, & &1.planned_at)
 
@@ -193,6 +189,17 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
   end
 
   defp prime_week(user, week_start) do
+    existing = read_week_entries(user, week_start)
+    existing_time_block_slots = MapSet.new(existing, &{&1.time_block_id, &1.planned_at})
+    existing_todo_ids = existing |> Enum.map(& &1.todo_id) |> MapSet.new()
+
+    prime_time_blocks(user, week_start, existing_time_block_slots)
+    prime_recurring_todos(user, week_start, existing_todo_ids)
+
+    :ok
+  end
+
+  defp prime_time_blocks(user, week_start, existing_slots) do
     time_blocks =
       TimeBlock
       |> Ash.Query.load(:availabilities)
@@ -202,7 +209,8 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
         avail <- block.availabilities,
         dow <- availability_days(avail),
         planned_at = availability_to_utc(week_start, dow, avail.start_time, user.timezone),
-        planned_at != nil do
+        planned_at != nil,
+        not MapSet.member?(existing_slots, {block.id, planned_at}) do
       Entry
       |> Ash.Changeset.for_create(
         :create,
@@ -216,8 +224,35 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
       )
       |> Ash.create!()
     end
+  end
 
-    :ok
+  defp prime_recurring_todos(user, week_start, existing_todo_ids) do
+    # `status != :done` is intentionally NOT applied here — recurring
+    # todos are never "completed" globally; the per-week presence on
+    # the planner is the cycle. Marking the todo done via the legacy
+    # toggle would still hide it from auto-prime via the recurrence
+    # check below if we wanted; for now we keep things simple.
+    todos =
+      Todo
+      |> Ash.Query.filter(recurrence != :none)
+      |> Ash.read!(actor: user)
+
+    for todo <- todos,
+        not MapSet.member?(existing_todo_ids, todo.id),
+        {:ok, planned_at} <-
+          [Electricbrain.Todos.Recurrence.due_in_week?(todo, week_start, user.timezone)] do
+      Entry
+      |> Ash.Changeset.for_create(
+        :create,
+        %{
+          week_start: week_start,
+          planned_at: planned_at,
+          todo_id: todo.id
+        },
+        actor: user
+      )
+      |> Ash.create!()
+    end
   end
 
   # nil day_of_week means "every day" — expand into 1..7.

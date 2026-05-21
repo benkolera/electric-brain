@@ -40,7 +40,12 @@ defmodule ElectricbrainWeb.TodoLive.Index do
   @impl true
   def handle_event("save", %{"form" => params}, socket) do
     user = socket.assigns.current_user
-    params = Map.put(params, "category_id", socket.assigns.picker_selected_id)
+    tz = user.timezone || "Etc/UTC"
+
+    params =
+      params
+      |> Map.put("category_id", socket.assigns.picker_selected_id)
+      |> Map.update("recurrence_anchor", nil, &local_input_to_utc(&1, tz))
 
     case AshPhoenix.Form.submit(socket.assigns.form, params: params) do
       {:ok, _todo} ->
@@ -82,6 +87,30 @@ defmodule ElectricbrainWeb.TodoLive.Index do
   defp priority_badge(:low), do: "badge badge-ghost badge-sm"
   defp priority_badge(_), do: "badge badge-ghost badge-sm"
 
+  defp recurrence_label(:weekly), do: "weekly"
+  defp recurrence_label(:biweekly), do: "every 2 weeks"
+  defp recurrence_label(:monthly), do: "monthly"
+  defp recurrence_label(_), do: nil
+
+  # Reinterpret a "YYYY-MM-DDTHH:MM" datetime-local value as a wall-clock
+  # time in the user's timezone, then convert to UTC ISO8601 for the
+  # changeset. The browser's datetime-local input has no timezone, so
+  # without this shift the value would get cast as if it were UTC.
+  defp local_input_to_utc(value, _tz) when value in [nil, ""], do: value
+
+  defp local_input_to_utc(value, tz) do
+    case NaiveDateTime.from_iso8601(value <> ":00") do
+      {:ok, naive} ->
+        case DateTime.from_naive(naive, tz) do
+          {:ok, dt} -> dt |> DateTime.shift_zone!("Etc/UTC") |> DateTime.to_iso8601()
+          _ -> value
+        end
+
+      _ ->
+        value
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -102,62 +131,100 @@ defmodule ElectricbrainWeb.TodoLive.Index do
         phx-submit="save"
         class="card bg-base-200 border border-base-300"
       >
-        <div class="card-body grid sm:grid-cols-[1fr_minmax(12rem,18rem)_auto_auto_auto] gap-3 items-end">
-          <div>
-            <label class="label">
-              <span class="label-text text-xs">Title</span>
-            </label>
-            <input
-              type="text"
-              name={@form[:title].name}
-              value={Phoenix.HTML.Form.normalize_value("text", @form[:title].value)}
-              class="input input-bordered w-full bg-base-100"
-              placeholder="Wire up the synapses…"
-              autocomplete="off"
-              required
-            />
+        <div class="card-body space-y-3">
+          <div class="grid sm:grid-cols-[1fr_minmax(12rem,18rem)_auto_auto_auto] gap-3 items-end">
+            <div>
+              <label class="label">
+                <span class="label-text text-xs">Title</span>
+              </label>
+              <input
+                type="text"
+                name={@form[:title].name}
+                value={Phoenix.HTML.Form.normalize_value("text", @form[:title].value)}
+                class="input input-bordered w-full bg-base-100"
+                placeholder="Wire up the synapses…"
+                autocomplete="off"
+                required
+              />
+            </div>
+
+            <div>
+              <label class="label">
+                <span class="label-text text-xs">Category</span>
+              </label>
+              <CategoryPicker.picker
+                categories={@categories}
+                categories_by_id={@categories_by_id}
+                selected_id={@picker_selected_id}
+                query={@picker_query}
+                open={@picker_open}
+              />
+            </div>
+
+            <div>
+              <label class="label">
+                <span class="label-text text-xs">Priority</span>
+              </label>
+              <select
+                name={@form[:priority].name}
+                class="select select-bordered bg-base-100"
+              >
+                <option value="low">low</option>
+                <option value="medium" selected>medium</option>
+                <option value="high">high</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">
+                <span class="label-text text-xs">Due</span>
+              </label>
+              <input
+                type="datetime-local"
+                name={@form[:due_at].name}
+                value={Phoenix.HTML.Form.normalize_value("datetime-local", @form[:due_at].value)}
+                class="input input-bordered bg-base-100"
+              />
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <.icon name="hero-plus-micro" class="size-4" /> Add
+            </button>
           </div>
 
-          <div>
-            <label class="label">
-              <span class="label-text text-xs">Category</span>
-            </label>
-            <CategoryPicker.picker
-              categories={@categories}
-              categories_by_id={@categories_by_id}
-              selected_id={@picker_selected_id}
-              query={@picker_query}
-              open={@picker_open}
-            />
+          <div class="grid sm:grid-cols-[auto_1fr] gap-3 items-end pt-2 border-t border-base-300">
+            <div>
+              <label class="label">
+                <span class="label-text text-xs">Repeats</span>
+              </label>
+              <select
+                name={@form[:recurrence].name}
+                class="select select-bordered bg-base-100"
+              >
+                <option value="none" selected>(once)</option>
+                <option value="weekly">weekly</option>
+                <option value="biweekly">every 2 weeks</option>
+                <option value="monthly">monthly</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">
+                <span class="label-text text-xs">First instance (anchor)</span>
+                <span class="label-text-alt text-neutral-content/60">
+                  required if repeating — day, day-of-month and time are taken from here
+                </span>
+              </label>
+              <input
+                type="datetime-local"
+                name={@form[:recurrence_anchor].name}
+                value={
+                  Phoenix.HTML.Form.normalize_value(
+                    "datetime-local",
+                    @form[:recurrence_anchor].value
+                  )
+                }
+                class="input input-bordered bg-base-100"
+              />
+            </div>
           </div>
-
-          <div>
-            <label class="label">
-              <span class="label-text text-xs">Priority</span>
-            </label>
-            <select
-              name={@form[:priority].name}
-              class="select select-bordered bg-base-100"
-            >
-              <option value="low">low</option>
-              <option value="medium" selected>medium</option>
-              <option value="high">high</option>
-            </select>
-          </div>
-          <div>
-            <label class="label">
-              <span class="label-text text-xs">Due</span>
-            </label>
-            <input
-              type="datetime-local"
-              name={@form[:due_at].name}
-              value={Phoenix.HTML.Form.normalize_value("datetime-local", @form[:due_at].value)}
-              class="input input-bordered bg-base-100"
-            />
-          </div>
-          <button type="submit" class="btn btn-primary">
-            <.icon name="hero-plus-micro" class="size-4" /> Add
-          </button>
         </div>
       </.form>
 
@@ -182,6 +249,11 @@ defmodule ElectricbrainWeb.TodoLive.Index do
                 {todo.title}
               </p>
               <div class="flex flex-wrap items-center gap-2 text-xs text-neutral-content/60 mt-0.5">
+                <%= if label = recurrence_label(todo.recurrence) do %>
+                  <span class="badge badge-info badge-sm gap-1">
+                    <.icon name="hero-arrow-path-micro" class="size-3" /> {label}
+                  </span>
+                <% end %>
                 <%= if cat = Map.get(@categories_by_id, todo.category_id) do %>
                   <span class="badge badge-outline badge-sm">
                     {CategoryPicker.breadcrumb(cat.path)}

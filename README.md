@@ -22,6 +22,9 @@ Single Phoenix app — no umbrella. Deployed as half of the
   past without each area being touched).
 - **Todos** — one-off intents pinned to a category, optionally with
   a duration. Surface in the planner pool when their week comes around.
+  Todos can also be **recurring** (`weekly`/`every 2 weeks`/`monthly`);
+  set a "first instance" anchor and the planner auto-primes an entry
+  each cycle.
 - **Habits** — recurring count-based intents ("3× per week"). Track
   completions per period; the streak heatmap + "don't miss twice"
   badge surface chains at risk. Each habit can carry an *identity

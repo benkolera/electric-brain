@@ -26,7 +26,9 @@ defmodule Electricbrain.Todos.Todo do
         :category_id,
         :duration_minutes,
         :buffer_before_minutes,
-        :buffer_after_minutes
+        :buffer_after_minutes,
+        :recurrence,
+        :recurrence_anchor
       ]
 
       change relate_actor(:user)
@@ -41,7 +43,9 @@ defmodule Electricbrain.Todos.Todo do
         :category_id,
         :duration_minutes,
         :buffer_before_minutes,
-        :buffer_after_minutes
+        :buffer_after_minutes,
+        :recurrence,
+        :recurrence_anchor
       ]
 
       require_atomic? false
@@ -70,6 +74,19 @@ defmodule Electricbrain.Todos.Todo do
 
     policy action_type([:read, :update, :destroy]) do
       authorize_if relates_to_actor_via(:user)
+    end
+  end
+
+  validations do
+    validate fn changeset, _ ->
+      recurrence = Ash.Changeset.get_attribute(changeset, :recurrence)
+      anchor = Ash.Changeset.get_attribute(changeset, :recurrence_anchor)
+
+      if recurrence in [:weekly, :biweekly, :monthly] and is_nil(anchor) do
+        {:error, field: :recurrence_anchor, message: "is required when recurrence is set"}
+      else
+        :ok
+      end
     end
   end
 
@@ -114,6 +131,21 @@ defmodule Electricbrain.Todos.Todo do
       default 0
       allow_nil? false
       constraints min: 0
+    end
+
+    # Recurring todos: when set, the planner's prime_week creates an
+    # entry each cycle (and only that cycle), using `recurrence_anchor`
+    # to pick the day-of-week / day-of-month / time-of-day, and to fix
+    # the biweekly cadence's start.
+    attribute :recurrence, :atom do
+      public? true
+      default :none
+      allow_nil? false
+      constraints one_of: [:none, :weekly, :biweekly, :monthly]
+    end
+
+    attribute :recurrence_anchor, :utc_datetime_usec do
+      public? true
     end
 
     timestamps()

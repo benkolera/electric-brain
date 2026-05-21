@@ -247,6 +247,53 @@ defmodule ElectricbrainWeb.PlannerLive.IndexTest do
     assert html =~ "Walk dog"
   end
 
+  test "prime_week creates an entry for a recurring todo due this week",
+       %{conn: conn, user: user, todo: todo} do
+    monday = today_monday(user)
+    # Anchor at noon on this Monday, weekly.
+    {:ok, anchor} = DateTime.new(monday, ~T[12:00:00], user.timezone)
+    anchor_utc = DateTime.shift_zone!(anchor, "Etc/UTC")
+
+    todo
+    |> Ash.Changeset.for_update(
+      :update,
+      %{recurrence: :weekly, recurrence_anchor: anchor_utc},
+      actor: user
+    )
+    |> Ash.update!()
+
+    {:ok, _view, _html} = live(conn, ~p"/plan")
+
+    entries = Ash.read!(Entry, actor: user)
+    [todo_entry] = Enum.filter(entries, &(&1.todo_id == todo.id))
+    assert todo_entry.week_start == monday
+    refute is_nil(todo_entry.planned_at)
+  end
+
+  test "prime_week is idempotent — second visit doesn't double up",
+       %{conn: conn, user: user, todo: todo} do
+    monday = today_monday(user)
+    {:ok, anchor} = DateTime.new(monday, ~T[12:00:00], user.timezone)
+    anchor_utc = DateTime.shift_zone!(anchor, "Etc/UTC")
+
+    todo
+    |> Ash.Changeset.for_update(
+      :update,
+      %{recurrence: :weekly, recurrence_anchor: anchor_utc},
+      actor: user
+    )
+    |> Ash.update!()
+
+    {:ok, _v1, _} = live(conn, ~p"/plan")
+    count_after_first = Enum.count(Ash.read!(Entry, actor: user), &(&1.todo_id == todo.id))
+
+    {:ok, _v2, _} = live(conn, ~p"/plan")
+    count_after_second = Enum.count(Ash.read!(Entry, actor: user), &(&1.todo_id == todo.id))
+
+    assert count_after_first == 1
+    assert count_after_second == 1
+  end
+
   defp today_monday(user) do
     local = DateTime.shift_zone!(DateTime.utc_now(), user.timezone)
     date = DateTime.to_date(local)
