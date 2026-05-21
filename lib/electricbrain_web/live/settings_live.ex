@@ -128,7 +128,16 @@ defmodule ElectricbrainWeb.SettingsLive do
       )
       |> Ash.update!()
 
-    {:noreply, assign(socket, :current_user, updated)}
+    theme =
+      case ElectricbrainWeb.Layouts.theme_attr(updated) do
+        false -> nil
+        value -> value
+      end
+
+    {:noreply,
+     socket
+     |> assign(:current_user, updated)
+     |> push_event("theme:set", %{theme: theme})}
   end
 
   def handle_event("test_push", _params, socket) do

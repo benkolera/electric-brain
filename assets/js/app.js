@@ -52,6 +52,18 @@ topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
+// data-theme lives on <html>, outside any LiveView's render tree. Settings
+// pushes this event so the toggle takes effect without a refresh; the
+// PlannerCalendar's MutationObserver then picks up the change and re-themes
+// Schedule-X. `null` removes the attribute so daisyUI's prefersdark applies.
+window.addEventListener("phx:theme:set", ({detail: {theme}}) => {
+  if (theme) {
+    document.documentElement.setAttribute("data-theme", theme)
+  } else {
+    document.documentElement.removeAttribute("data-theme")
+  }
+})
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 
