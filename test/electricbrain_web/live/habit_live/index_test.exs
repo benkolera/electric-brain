@@ -50,8 +50,7 @@ defmodule ElectricbrainWeb.HabitLive.IndexTest do
         "form" => %{
           "title" => "Exercise",
           "min_count" => "3",
-          "period" => "week",
-          "fixed_schedule" => "false"
+          "period" => "week"
         }
       })
       |> render_submit()

@@ -36,8 +36,7 @@ defmodule ElectricbrainWeb.HabitLive.EditTest do
         "period" => "week",
         "duration_minutes" => "60",
         "buffer_before_minutes" => "15",
-        "buffer_after_minutes" => "10",
-        "fixed_schedule" => "false"
+        "buffer_after_minutes" => "10"
       }
     })
     |> render_submit()

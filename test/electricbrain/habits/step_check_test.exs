@@ -16,7 +16,7 @@ defmodule Electricbrain.Habits.StepCheckTest do
       Habit
       |> Ash.Changeset.for_create(
         :create,
-        %{title: "Bedtime", category_id: inbox.id, fixed_schedule: true},
+        %{title: "Bedtime", category_id: inbox.id, min_count: 1, period: :day},
         actor: user
       )
       |> Ash.create!()
