@@ -108,6 +108,13 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+/* iOS Safari auto-zooms when a focused input/textarea/select has a
+   computed font-size under 16px, which yanks the layout sideways. Force
+   at least 16px on small screens so focus is a no-op visually. */
+@media (max-width: 767px) {
+  input, textarea, select { font-size: 16px; }
+}
+
 /* Markdown rendering for notes (.markdown wraps the mdex output). */
 .markdown { color: var(--color-base-content); line-height: 1.65; }
 .markdown h1, .markdown h2, .markdown h3, .markdown h4 {
