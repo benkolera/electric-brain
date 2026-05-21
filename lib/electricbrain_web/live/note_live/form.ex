@@ -53,7 +53,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
     case action do
       "save" -> save(socket)
       "add_block:markdown" -> {:noreply, add_block(socket, :markdown)}
-      "add_block:tldraw" -> {:noreply, add_block(socket, :tldraw)}
+      "add_block:excalidraw" -> {:noreply, add_block(socket, :excalidraw)}
       "remove_block:" <> cid -> {:noreply, remove_block(socket, cid)}
       "move_up:" <> cid -> {:noreply, move_block(socket, cid, -1)}
       "move_down:" <> cid -> {:noreply, move_block(socket, cid, +1)}
@@ -94,7 +94,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
         :markdown ->
           %{"body" => Map.get(submitted, "body", existing.data["body"] || "")}
 
-        :tldraw ->
+        :excalidraw ->
           snapshot =
             case Jason.decode(Map.get(submitted, "snapshot", "")) do
               {:ok, val} when is_map(val) -> val
@@ -124,7 +124,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
   end
 
   defp default_data(:markdown), do: %{"body" => ""}
-  defp default_data(:tldraw), do: %{"snapshot" => %{}, "preview_svg" => ""}
+  defp default_data(:excalidraw), do: %{"snapshot" => %{}, "preview_svg" => ""}
 
   defp remove_block(socket, cid) do
     blocks = Enum.reject(socket.assigns.blocks, &(&1.client_id == cid))
@@ -302,7 +302,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
           <button
             type="submit"
             name="_action"
-            value="add_block:tldraw"
+            value="add_block:excalidraw"
             class="btn btn-sm btn-ghost"
           >
             <.icon name="hero-pencil-square-micro" class="size-4" /> Sketch
@@ -392,7 +392,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
     """
   end
 
-  defp render_block_body(%{block: block} = assigns) when block.kind == :tldraw do
+  defp render_block_body(%{block: block} = assigns) when block.kind == :excalidraw do
     cid = block.client_id
 
     assigns =
@@ -401,7 +401,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
       |> assign(:snapshot_input_id, "block-#{cid}-snapshot")
       |> assign(:svg_input_id, "block-#{cid}-svg")
       |> assign(:preview_id, "block-#{cid}-preview")
-      |> assign(:dialog_id, "block-#{cid}-dialog")
+      |> assign(:overlay_id, "block-#{cid}-overlay")
       |> assign(:editor_id, "block-#{cid}-editor")
       |> assign(:open_btn_id, "block-#{cid}-open")
       |> assign(:close_btn_id, "block-#{cid}-close")
@@ -440,32 +440,31 @@ defmodule ElectricbrainWeb.NoteLive.Form do
         </button>
       </div>
 
-      <dialog
-        id={@dialog_id}
-        class="w-screen h-screen max-w-none max-h-none m-0 p-0 bg-base-100 backdrop:bg-black/50"
+      <div
+        id={@overlay_id}
+        class="fixed inset-0 z-50 bg-base-100 flex-col"
+        style="display: none; height: 100dvh;"
       >
-        <div class="flex flex-col h-full">
-          <div class="flex items-center justify-between p-3 border-b border-base-300 bg-base-200">
-            <span class="font-semibold">Sketch</span>
-            <button type="button" id={@close_btn_id} class="btn btn-sm btn-primary">
-              <.icon name="hero-check-micro" class="size-4" /> Done
-            </button>
-          </div>
-          <div
-            id={@editor_id}
-            phx-hook="TldrawEditor"
-            phx-update="ignore"
-            data-dialog={"##{@dialog_id}"}
-            data-open-button={"##{@open_btn_id}"}
-            data-close-button={"##{@close_btn_id}"}
-            data-snapshot-input={"##{@snapshot_input_id}"}
-            data-svg-input={"##{@svg_input_id}"}
-            data-preview={"##{@preview_id}"}
-            class="flex-1"
-          >
-          </div>
+        <div class="flex items-center justify-between p-3 border-b border-base-300 bg-base-200">
+          <span class="font-semibold">Sketch</span>
+          <button type="button" id={@close_btn_id} class="btn btn-sm btn-primary">
+            <.icon name="hero-check-micro" class="size-4" /> Done
+          </button>
         </div>
-      </dialog>
+        <div
+          id={@editor_id}
+          phx-hook="ExcalidrawEditor"
+          phx-update="ignore"
+          data-overlay={"##{@overlay_id}"}
+          data-open-button={"##{@open_btn_id}"}
+          data-close-button={"##{@close_btn_id}"}
+          data-snapshot-input={"##{@snapshot_input_id}"}
+          data-svg-input={"##{@svg_input_id}"}
+          data-preview={"##{@preview_id}"}
+          class="relative flex-1 min-h-0 touch-none"
+        >
+        </div>
+      </div>
     </div>
     """
   end
@@ -481,7 +480,7 @@ defmodule ElectricbrainWeb.NoteLive.Form do
   end
 
   defp block_kind_label(:markdown), do: "Markdown"
-  defp block_kind_label(:tldraw), do: "Sketch"
+  defp block_kind_label(:excalidraw), do: "Sketch"
   defp block_kind_label(kind), do: to_string(kind)
 
   defp block_order_value(blocks) do

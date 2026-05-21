@@ -47,8 +47,9 @@ Single Phoenix app — no umbrella. Deployed as half of the
   conflict.
 - **Notes** — composed from an ordered list of typed blocks.
   Markdown blocks for prose; sketch blocks open a fullscreen
-  tldraw canvas (Apple Pencil-friendly) and store a still preview
-  back in the note. New block kinds drop in with one enum value.
+  Excalidraw canvas (Apple Pencil-friendly) and store a still
+  preview back in the note. New block kinds drop in with one
+  enum value.
 - **Planner** — weekly calendar (Schedule-X), drag-and-drop scheduling
   of todos/habits from a floating pool onto a time grid. Auto-primed
   with time-block availability each week. Per-category planned-time

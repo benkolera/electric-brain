@@ -61,7 +61,7 @@ defmodule ElectricbrainWeb.NoteLive.Show do
     """
   end
 
-  defp render_block(assigns, %{kind: :tldraw} = block) do
+  defp render_block(assigns, %{kind: :excalidraw} = block) do
     assigns =
       assigns
       |> assign(:block_id, block.id)
@@ -69,7 +69,7 @@ defmodule ElectricbrainWeb.NoteLive.Show do
 
     ~H"""
     <div
-      id={"tldraw-view-#{@block_id}"}
+      id={"excalidraw-view-#{@block_id}"}
       class="w-full aspect-[3/2] bg-base-200 border border-base-300 rounded-box overflow-hidden flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-full"
     >
       <%= if @preview_svg != "" do %>

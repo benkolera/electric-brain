@@ -63,21 +63,21 @@ defmodule Electricbrain.NotesTest do
       assert block.position == 0
     end
 
-    test "creates a tldraw block with snapshot + preview_svg", %{user: user} do
+    test "creates an excalidraw block with snapshot + preview_svg", %{user: user} do
       note = create_note!(user)
 
       block =
         create_block!(user, %{
           note_id: note.id,
-          kind: :tldraw,
+          kind: :excalidraw,
           data: %{
-            "snapshot" => %{"document" => %{}},
+            "snapshot" => %{"elements" => []},
             "preview_svg" => "<svg></svg>"
           },
           position: 1
         })
 
-      assert block.kind == :tldraw
+      assert block.kind == :excalidraw
       assert block.data["preview_svg"] == "<svg></svg>"
     end
 
@@ -107,14 +107,14 @@ defmodule Electricbrain.NotesTest do
                |> Ash.create()
     end
 
-    test "rejects tldraw without :snapshot or :preview_svg", %{user: user} do
+    test "rejects excalidraw without :snapshot or :preview_svg", %{user: user} do
       note = create_note!(user)
 
       assert {:error, _} =
                NoteBlock
                |> Ash.Changeset.for_create(
                  :create,
-                 %{note_id: note.id, kind: :tldraw, data: %{}, position: 0},
+                 %{note_id: note.id, kind: :excalidraw, data: %{}, position: 0},
                  actor: user
                )
                |> Ash.create()
@@ -125,7 +125,7 @@ defmodule Electricbrain.NotesTest do
                  :create,
                  %{
                    note_id: note.id,
-                   kind: :tldraw,
+                   kind: :excalidraw,
                    data: %{"snapshot" => %{}},
                    position: 0
                  },
@@ -190,7 +190,7 @@ defmodule Electricbrain.NotesTest do
 
       assert {:error, _} =
                block
-               |> Ash.Changeset.for_update(:update, %{kind: :tldraw, data: %{"body" => "ok"}},
+               |> Ash.Changeset.for_update(:update, %{kind: :excalidraw, data: %{"body" => "ok"}},
                  actor: user
                )
                |> Ash.update()

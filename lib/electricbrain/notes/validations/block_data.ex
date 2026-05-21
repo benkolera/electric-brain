@@ -26,13 +26,13 @@ defmodule Electricbrain.Notes.Validations.BlockData do
     end
   end
 
-  defp validate_kind(:tldraw, data) do
+  defp validate_kind(:excalidraw, data) do
     cond do
       not Map.has_key?(data, "snapshot") and not Map.has_key?(data, :snapshot) ->
-        {:error, "tldraw block requires a :snapshot key"}
+        {:error, "excalidraw block requires a :snapshot key"}
 
       not Map.has_key?(data, "preview_svg") and not Map.has_key?(data, :preview_svg) ->
-        {:error, "tldraw block requires a :preview_svg key"}
+        {:error, "excalidraw block requires a :preview_svg key"}
 
       true ->
         :ok

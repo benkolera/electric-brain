@@ -59,7 +59,7 @@ defmodule Electricbrain.Notes.NoteBlock do
     attribute :kind, :atom do
       allow_nil? false
       public? true
-      constraints one_of: [:markdown, :tldraw]
+      constraints one_of: [:markdown, :excalidraw]
     end
 
     attribute :data, :map do
