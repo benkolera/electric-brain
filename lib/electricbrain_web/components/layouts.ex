@@ -26,7 +26,7 @@ defmodule ElectricbrainWeb.Layouts do
       <%= if @current_user do %>
         <div id="timezone-detect" phx-hook="TimezoneDetect" phx-update="ignore"></div>
       <% end %>
-      <header class="navbar bg-base-200/60 backdrop-blur border-b border-base-300 px-4 sm:px-6 lg:px-8">
+      <header class="navbar sticky top-0 z-40 bg-base-200/60 backdrop-blur border-b border-base-300 px-4 sm:px-6 lg:px-8">
         <div class="flex-1">
           <a href="/" class="flex items-center gap-2 group">
             <img
@@ -52,7 +52,7 @@ defmodule ElectricbrainWeb.Layouts do
               >
                 <.icon name="hero-bars-3-micro" class="size-6" />
               </summary>
-              <ul class="dropdown-content menu bg-base-200 rounded-box mt-2 min-w-56 shadow-lg z-20 p-2 gap-1">
+              <ul class="dropdown-content menu bg-base-200 rounded-box mt-2 min-w-56 shadow-lg z-50 p-2 gap-1 border border-base-300">
                 <.nav_items current_user={@current_user} />
               </ul>
             </details>
