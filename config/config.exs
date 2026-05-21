@@ -61,6 +61,7 @@ config :electricbrain,
     Electricbrain.Notes,
     Electricbrain.Metrics,
     Electricbrain.Moments,
+    Electricbrain.Notifications,
     Electricbrain.Accounts
   ]
 

@@ -15,7 +15,8 @@ defmodule Electricbrain.Application do
       {Registry, keys: :unique, name: Electricbrain.Agenda.Registry},
       {DynamicSupervisor, strategy: :one_for_one, name: Electricbrain.Agenda.Supervisor},
       ElectricbrainWeb.Endpoint,
-      {AshAuthentication.Supervisor, [otp_app: :electricbrain]}
+      {AshAuthentication.Supervisor, [otp_app: :electricbrain]},
+      Electricbrain.Notifications.Scheduler
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

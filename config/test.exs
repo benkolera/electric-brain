@@ -1,7 +1,16 @@
 import Config
 config :electricbrain, token_signing_secret: "AipXgxZip7mQmVkrTEaKaZk8MWlP+++J"
+config :electricbrain, :notifications, enabled: false
 config :bcrypt_elixir, log_rounds: 1
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
+
+# A deterministic dummy VAPID pair so the library config has something to
+# read; tests never actually deliver pushes.
+config :web_push_elixir,
+  vapid_public_key:
+    "BMxPa5w1smIyaeqaCy3nqcZ3C0j0W_SoAGcASJXnoBzAUVfys570QVvCIdMns6L1hDx7A5y8l2ZOanhCc5xU4MM",
+  vapid_private_key: "Y0aQxcmHGLyvXFpYtB_LSMbyjGpvSh8kIq3s_dGI_Xo",
+  vapid_subject: "mailto:test@example.com"
 
 # Configure your database
 #

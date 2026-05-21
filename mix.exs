@@ -76,6 +76,7 @@ defmodule Electricbrain.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:mdex, "~> 0.5"},
+      {:web_push_elixir, "~> 0.8"},
       {:igniter, "~> 0.5", only: [:dev, :test]},
       {:sourceror, "~> 1.8", only: [:dev, :test]}
     ]

@@ -80,6 +80,16 @@ if google_client_id = System.get_env("GOOGLE_CLIENT_ID") do
     google_client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
 end
 
+# Web push (VAPID) — local dev keypair. Regenerate with
+# `mix generate.vapid.keys` for prod and set VAPID_PUBLIC_KEY +
+# VAPID_PRIVATE_KEY env vars. The dev pair here only works against this
+# checkout's browser subscriptions — they are tied to the public key.
+config :web_push_elixir,
+  vapid_public_key:
+    "BMxPa5w1smIyaeqaCy3nqcZ3C0j0W_SoAGcASJXnoBzAUVfys570QVvCIdMns6L1hDx7A5y8l2ZOanhCc5xU4MM",
+  vapid_private_key: "Y0aQxcmHGLyvXFpYtB_LSMbyjGpvSh8kIq3s_dGI_Xo",
+  vapid_subject: "mailto:ben.kolera@gmail.com"
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 

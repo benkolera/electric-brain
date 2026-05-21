@@ -106,6 +106,20 @@ if config_env() == :prod do
           raise("Missing environment variable `GOOGLE_CLIENT_SECRET`!")
   end
 
+  # Web push (VAPID). Generate a keypair once with `mix generate.vapid.keys`
+  # and set these env vars. The Settings UI's notification controls degrade
+  # gracefully if VAPID_PUBLIC_KEY is missing.
+  if vapid_public_key = System.get_env("VAPID_PUBLIC_KEY") do
+    config :web_push_elixir,
+      vapid_public_key: vapid_public_key,
+      vapid_private_key:
+        System.get_env("VAPID_PRIVATE_KEY") ||
+          raise("Missing environment variable `VAPID_PRIVATE_KEY`!"),
+      vapid_subject:
+        System.get_env("VAPID_SUBJECT") ||
+          "mailto:#{System.get_env("CONTACT_EMAIL", "admin@example.com")}"
+  end
+
   # ## SSL Support
   #
   # To get SSL working, you will need to add the `https` key

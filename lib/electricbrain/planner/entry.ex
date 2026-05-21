@@ -43,6 +43,9 @@ defmodule Electricbrain.Planner.Entry do
     update :schedule do
       accept [:planned_at, :duration_minutes]
       require_atomic? false
+
+      # Rescheduling re-arms the upcoming-start notification.
+      change Electricbrain.Planner.Entry.ClearNotifiedAt
     end
 
     update :unschedule do
@@ -51,6 +54,12 @@ defmodule Electricbrain.Planner.Entry do
 
       change set_attribute(:planned_at, nil)
       change set_attribute(:google_event_id, nil)
+      change Electricbrain.Planner.Entry.ClearNotifiedAt
+    end
+
+    update :mark_notified do
+      accept []
+      change set_attribute(:notified_at, &DateTime.utc_now/0)
     end
 
     update :set_google_event_id do
@@ -106,6 +115,12 @@ defmodule Electricbrain.Planner.Entry do
     # Google Calendar event id, stored after a successful sync. Used to
     # update or delete the event idempotently on subsequent syncs.
     attribute :google_event_id, :string do
+      public? true
+    end
+
+    # Set when the upcoming-start push notification has been fired for this
+    # entry. Cleared on :schedule / :unschedule so a reschedule re-arms it.
+    attribute :notified_at, :utc_datetime_usec do
       public? true
     end
 
