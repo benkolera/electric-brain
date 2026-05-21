@@ -3,6 +3,7 @@ defmodule ElectricbrainWeb.TodoLive.Schedule do
 
   alias Electricbrain.Todos.Availability
   alias Electricbrain.Todos.Todo
+  alias ElectricbrainWeb.CategoryPicker
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -11,8 +12,12 @@ defmodule ElectricbrainWeb.TodoLive.Schedule do
 
     {:ok,
      socket
-     |> assign(:page_title, "Schedule · #{todo.title}")
+     |> assign(:page_title, "Edit · #{todo.title}")
      |> assign(:todo, todo)
+     |> CategoryPicker.assign(user)
+     |> CategoryPicker.attach()
+     |> assign(:picker_selected_id, todo.category_id)
+     |> assign(:edit_form, edit_form(todo, user))
      |> assign(:timing_form, timing_form(todo, user))
      |> assign(:availability_form, availability_form(user))}
   end
@@ -20,6 +25,12 @@ defmodule ElectricbrainWeb.TodoLive.Schedule do
   defp load_todo(id, user) do
     Todo
     |> Ash.get!(id, actor: user, load: [:availabilities])
+  end
+
+  defp edit_form(todo, user) do
+    todo
+    |> AshPhoenix.Form.for_update(:update, actor: user)
+    |> to_form()
   end
 
   defp timing_form(todo, user) do
@@ -32,6 +43,38 @@ defmodule ElectricbrainWeb.TodoLive.Schedule do
     Availability
     |> AshPhoenix.Form.for_create(:create, actor: user)
     |> to_form()
+  end
+
+  @impl true
+  def handle_event("validate_edit", %{"form" => params}, socket) do
+    form = AshPhoenix.Form.validate(socket.assigns.edit_form, params)
+    {:noreply, assign(socket, edit_form: to_form(form))}
+  end
+
+  def handle_event("save_edit", %{"form" => params}, socket) do
+    user = socket.assigns.current_user
+    tz = user.timezone || "Etc/UTC"
+
+    params =
+      params
+      |> Map.put("category_id", socket.assigns.picker_selected_id)
+      |> maybe_convert_local_input("due_at", tz)
+      |> maybe_convert_local_input("recurrence_anchor", tz)
+
+    case AshPhoenix.Form.submit(socket.assigns.edit_form, params: params) do
+      {:ok, todo} ->
+        todo = load_todo(todo.id, user)
+
+        {:noreply,
+         socket
+         |> assign(:todo, todo)
+         |> assign(:edit_form, edit_form(todo, user))
+         |> assign(:timing_form, timing_form(todo, user))
+         |> put_flash(:info, "Saved")}
+
+      {:error, form} ->
+        {:noreply, assign(socket, edit_form: to_form(form))}
+    end
   end
 
   @impl true
@@ -98,6 +141,30 @@ defmodule ElectricbrainWeb.TodoLive.Schedule do
 
   defp format_time(time), do: Calendar.strftime(time, "%H:%M")
 
+  # Walks "YYYY-MM-DDTHH:MM" (datetime-local browser format) into a
+  # UTC ISO8601 string by treating the input as a wall-clock time in
+  # the user's tz. Without this, the value would round-trip through
+  # the cast as if it were already UTC.
+  defp maybe_convert_local_input(params, key, tz) do
+    Map.update(params, key, nil, fn
+      v when v in [nil, ""] -> v
+      v -> local_input_to_utc(v, tz)
+    end)
+  end
+
+  defp local_input_to_utc(value, tz) do
+    case NaiveDateTime.from_iso8601(value <> ":00") do
+      {:ok, naive} ->
+        case DateTime.from_naive(naive, tz) do
+          {:ok, dt} -> dt |> DateTime.shift_zone!("Etc/UTC") |> DateTime.to_iso8601()
+          _ -> value
+        end
+
+      _ ->
+        value
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -113,9 +180,136 @@ defmodule ElectricbrainWeb.TodoLive.Schedule do
           {@todo.title}
         </h1>
         <p class="text-sm text-neutral-content/70">
-          When can this be done and how much calendar space does it take.
+          Edit the todo's details, scheduling cadence and availability windows.
         </p>
       </div>
+
+      <.form
+        for={@edit_form}
+        id="edit-form"
+        phx-change="validate_edit"
+        phx-submit="save_edit"
+        class="card bg-base-200 border border-base-300"
+      >
+        <div class="card-body space-y-3">
+          <h2 class="card-title text-lg">Details</h2>
+
+          <div class="grid sm:grid-cols-2 gap-3">
+            <div class="sm:col-span-2">
+              <label class="label"><span class="label-text text-xs">Title</span></label>
+              <input
+                type="text"
+                name={@edit_form[:title].name}
+                value={Phoenix.HTML.Form.normalize_value("text", @edit_form[:title].value)}
+                class="input input-bordered w-full bg-base-100"
+                required
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="sm:col-span-2">
+              <label class="label"><span class="label-text text-xs">Category</span></label>
+              <CategoryPicker.picker
+                categories={@categories}
+                categories_by_id={@categories_by_id}
+                selected_id={@picker_selected_id}
+                query={@picker_query}
+                open={@picker_open}
+              />
+            </div>
+
+            <div>
+              <label class="label"><span class="label-text text-xs">Priority</span></label>
+              <select
+                name={@edit_form[:priority].name}
+                class="select select-bordered bg-base-100 w-full"
+              >
+                <option value="low" selected={@edit_form[:priority].value in [:low, "low"]}>
+                  low
+                </option>
+                <option
+                  value="medium"
+                  selected={@edit_form[:priority].value in [nil, "", :medium, "medium"]}
+                >
+                  medium
+                </option>
+                <option value="high" selected={@edit_form[:priority].value in [:high, "high"]}>
+                  high
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label"><span class="label-text text-xs">Due (optional)</span></label>
+              <input
+                type="datetime-local"
+                name={@edit_form[:due_at].name}
+                value={Phoenix.HTML.Form.normalize_value("datetime-local", @edit_form[:due_at].value)}
+                class="input input-bordered w-full bg-base-100"
+              />
+            </div>
+
+            <div>
+              <label class="label"><span class="label-text text-xs">Repeats</span></label>
+              <select
+                name={@edit_form[:recurrence].name}
+                class="select select-bordered bg-base-100 w-full"
+              >
+                <option
+                  value="none"
+                  selected={@edit_form[:recurrence].value in [nil, "", :none, "none"]}
+                >
+                  (once)
+                </option>
+                <option
+                  value="weekly"
+                  selected={@edit_form[:recurrence].value in [:weekly, "weekly"]}
+                >
+                  weekly
+                </option>
+                <option
+                  value="biweekly"
+                  selected={@edit_form[:recurrence].value in [:biweekly, "biweekly"]}
+                >
+                  every 2 weeks
+                </option>
+                <option
+                  value="monthly"
+                  selected={@edit_form[:recurrence].value in [:monthly, "monthly"]}
+                >
+                  monthly
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label flex-col items-start gap-0.5">
+                <span class="label-text text-xs">First instance (anchor)</span>
+                <span class="label-text-alt text-neutral-content/60 whitespace-normal">
+                  required if repeating — sets day, day-of-month and time
+                </span>
+              </label>
+              <input
+                type="datetime-local"
+                name={@edit_form[:recurrence_anchor].name}
+                value={
+                  Phoenix.HTML.Form.normalize_value(
+                    "datetime-local",
+                    @edit_form[:recurrence_anchor].value
+                  )
+                }
+                class="input input-bordered w-full bg-base-100"
+              />
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button type="submit" class="btn btn-primary">
+              <.icon name="hero-check-micro" class="size-4" /> Save details
+            </button>
+          </div>
+        </div>
+      </.form>
 
       <.form
         for={@timing_form}
@@ -124,57 +318,63 @@ defmodule ElectricbrainWeb.TodoLive.Schedule do
         phx-submit="save_timing"
         class="card bg-base-200 border border-base-300"
       >
-        <div class="card-body grid sm:grid-cols-[auto_auto_auto_1fr_auto] gap-3 items-end">
-          <div>
-            <label class="label">
-              <span class="label-text text-xs">Duration (min)</span>
-            </label>
-            <input
-              type="number"
-              name={@timing_form[:duration_minutes].name}
-              value={
-                Phoenix.HTML.Form.normalize_value("number", @timing_form[:duration_minutes].value)
-              }
-              min="0"
-              class="input input-bordered w-24 bg-base-100"
-              placeholder="—"
-            />
+        <div class="card-body space-y-3">
+          <h2 class="card-title text-lg">Timing</h2>
+          <div class="grid sm:grid-cols-[auto_auto_auto_1fr_auto] gap-3 items-end">
+            <div>
+              <label class="label">
+                <span class="label-text text-xs">Duration (min)</span>
+              </label>
+              <input
+                type="number"
+                name={@timing_form[:duration_minutes].name}
+                value={
+                  Phoenix.HTML.Form.normalize_value("number", @timing_form[:duration_minutes].value)
+                }
+                min="0"
+                class="input input-bordered w-24 bg-base-100"
+                placeholder="—"
+              />
+            </div>
+            <div>
+              <label class="label">
+                <span class="label-text text-xs">Buffer before (min)</span>
+              </label>
+              <input
+                type="number"
+                name={@timing_form[:buffer_before_minutes].name}
+                value={
+                  Phoenix.HTML.Form.normalize_value(
+                    "number",
+                    @timing_form[:buffer_before_minutes].value
+                  )
+                }
+                min="0"
+                class="input input-bordered w-24 bg-base-100"
+              />
+            </div>
+            <div>
+              <label class="label">
+                <span class="label-text text-xs">Buffer after (min)</span>
+              </label>
+              <input
+                type="number"
+                name={@timing_form[:buffer_after_minutes].name}
+                value={
+                  Phoenix.HTML.Form.normalize_value(
+                    "number",
+                    @timing_form[:buffer_after_minutes].value
+                  )
+                }
+                min="0"
+                class="input input-bordered w-24 bg-base-100"
+              />
+            </div>
+            <div></div>
+            <button type="submit" class="btn btn-primary">
+              <.icon name="hero-check-micro" class="size-4" /> Save
+            </button>
           </div>
-          <div>
-            <label class="label">
-              <span class="label-text text-xs">Buffer before (min)</span>
-            </label>
-            <input
-              type="number"
-              name={@timing_form[:buffer_before_minutes].name}
-              value={
-                Phoenix.HTML.Form.normalize_value(
-                  "number",
-                  @timing_form[:buffer_before_minutes].value
-                )
-              }
-              min="0"
-              class="input input-bordered w-24 bg-base-100"
-            />
-          </div>
-          <div>
-            <label class="label">
-              <span class="label-text text-xs">Buffer after (min)</span>
-            </label>
-            <input
-              type="number"
-              name={@timing_form[:buffer_after_minutes].name}
-              value={
-                Phoenix.HTML.Form.normalize_value("number", @timing_form[:buffer_after_minutes].value)
-              }
-              min="0"
-              class="input input-bordered w-24 bg-base-100"
-            />
-          </div>
-          <div></div>
-          <button type="submit" class="btn btn-primary">
-            <.icon name="hero-check-micro" class="size-4" /> Save
-          </button>
         </div>
       </.form>
 
