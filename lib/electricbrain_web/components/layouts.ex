@@ -141,6 +141,11 @@ defmodule ElectricbrainWeb.Layouts do
       </.link>
     </li>
     <li>
+      <.link navigate={~p"/help"} class="font-medium">
+        <.icon name="hero-question-mark-circle-micro" class="size-4" /> Help
+      </.link>
+    </li>
+    <li>
       <.link navigate={~p"/settings"} class="font-medium">
         <.icon name="hero-cog-6-tooth-micro" class="size-4" /> Settings
       </.link>

@@ -28,9 +28,20 @@ Treat these as part of the change, not follow-up work:
 3. **Ash snapshots** — `mix ash.codegen --name <descriptive>` after
    any resource/attribute/action edit. Never hand-edit migration
    files except for one-shot data moves (see "Migrations" below).
+4. **In-app help (`priv/help/index.md`)** — if the change introduces
+   a user-visible feature, changes the mental model, or alters how
+   resources relate, update the help content in the same commit. The
+   `/help` page is the user's single source of truth for "how the
+   app is meant to be used"; if you ship a feature that doesn't show
+   up here, it doesn't exist as far as the user knows.
+5. **Onboarding (`HomeLive.welcome_block/1`)** — if the new feature
+   should be part of the get-set-up sequence for a brand-new user
+   (no habits, no time blocks), add it to the numbered next-steps
+   list there. If the new feature triggers the welcome to dismiss
+   earlier, update `new_user?/1` too.
 
-If you're unsure whether something needs README or test movement,
-err on the side of yes.
+If you're unsure whether something needs README, test, or help
+movement, err on the side of yes.
 
 ## Conventions
 

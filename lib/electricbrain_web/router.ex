@@ -62,6 +62,8 @@ defmodule ElectricbrainWeb.Router do
       live "/plan/review", PlannerLive.Review, :index
 
       live "/settings", SettingsLive, :index
+
+      live "/help", HelpLive, :index
     end
 
     scope "/oauth/google", as: :google_oauth do

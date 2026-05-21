@@ -1,9 +1,12 @@
 defmodule ElectricbrainWeb.HomeLive do
   use ElectricbrainWeb, :live_view
 
+  require Ash.Query
   import ElectricbrainWeb.AgendaHelpers
 
   alias Electricbrain.Habits.Completion
+  alias Electricbrain.Habits.Habit
+  alias Electricbrain.TimeBlocks.TimeBlock
   alias Electricbrain.Todos.Todo
 
   @impl true
@@ -12,7 +15,21 @@ defmodule ElectricbrainWeb.HomeLive do
       Electricbrain.Agenda.refresh(socket.assigns.current_user.id)
     end
 
-    {:ok, assign(socket, :page_title, "Today")}
+    {:ok,
+     socket
+     |> assign(:page_title, "Today")
+     |> assign(:new_user?, new_user?(socket.assigns[:current_user]))}
+  end
+
+  # A user with no habits and no time blocks hasn't set the app up yet —
+  # the home page shows a welcome / next-steps block instead of just
+  # "nothing planned today".
+  defp new_user?(nil), do: false
+
+  defp new_user?(user) do
+    habit_count = Habit |> Ash.read!(actor: user) |> length()
+    block_count = TimeBlock |> Ash.read!(actor: user) |> length()
+    habit_count == 0 and block_count == 0
   end
 
   @impl true
@@ -189,24 +206,76 @@ defmodule ElectricbrainWeb.HomeLive do
         <p class="text-sm text-neutral-content/70">{format_today(@tz)}</p>
       </div>
 
-      <%= if @past == [] and @current == [] and @upcoming == [] do %>
-        <div class="text-center py-12 text-neutral-content/60">
-          Nothing planned today. <.link navigate={~p"/plan"} class="link link-primary">Plan your week</.link>.
-        </div>
-      <% else %>
-        <ul class="space-y-2">
-          <%= for item <- @past do %>
-            <.day_item item={item} kind={:past} timezone={@tz} />
-          <% end %>
-          <%= for item <- @current do %>
-            <.day_item item={item} kind={:now} timezone={@tz} />
-          <% end %>
-          <%= for item <- @upcoming do %>
-            <.day_item item={item} kind={:upcoming} timezone={@tz} />
-          <% end %>
-        </ul>
+      <%= cond do %>
+        <% @new_user? -> %>
+          <.welcome_block />
+        <% @past == [] and @current == [] and @upcoming == [] -> %>
+          <div class="text-center py-12 text-neutral-content/60">
+            Nothing planned today. <.link navigate={~p"/plan"} class="link link-primary">Plan your week</.link>.
+          </div>
+        <% true -> %>
+          <ul class="space-y-2">
+            <%= for item <- @past do %>
+              <.day_item item={item} kind={:past} timezone={@tz} />
+            <% end %>
+            <%= for item <- @current do %>
+              <.day_item item={item} kind={:now} timezone={@tz} />
+            <% end %>
+            <%= for item <- @upcoming do %>
+              <.day_item item={item} kind={:upcoming} timezone={@tz} />
+            <% end %>
+          </ul>
       <% end %>
     </Layouts.app>
+    """
+  end
+
+  defp welcome_block(assigns) do
+    ~H"""
+    <div class="card bg-base-200 border border-base-300">
+      <div class="card-body space-y-4">
+        <div>
+          <h2 class="card-title text-2xl">Welcome to Electric Brain</h2>
+          <p class="text-sm text-neutral-content/80 mt-1">
+            A second brain built around <em>balance across life areas</em>, not throughput.
+            The heart is a Sunday planning ritual: look back, place the week ahead onto
+            the calendar, sync to Google, live the plan.
+          </p>
+        </div>
+
+        <div>
+          <p class="text-sm font-semibold mb-2">Get set up — in this order:</p>
+          <ol class="space-y-2 list-decimal list-inside text-sm">
+            <li>
+              <.link navigate={~p"/categories"} class="link link-primary">
+                Edit the category tree
+              </.link>
+              — Health, Work, Hobbies, Relationships. Everything else points at one of these.
+            </li>
+            <li>
+              <.link navigate={~p"/time-blocks"} class="link link-primary">Set time blocks</.link>
+              — Sleep, Work, Deep Work. The planner auto-places these from availability windows.
+            </li>
+            <li>
+              <.link navigate={~p"/habits"} class="link link-primary">Add habits</.link>
+              — recurring intents with counts ("3× per week"). Identity statements optional.
+            </li>
+            <li>
+              <.link navigate={~p"/plan"} class="link link-primary">Open the planner</.link>
+              — drag todos and habits onto the week. Sync to Google when you're happy.
+            </li>
+            <li>
+              <.link navigate={~p"/help"} class="link link-primary">Read the guide</.link>
+              — the philosophy and how all the pieces link together.
+            </li>
+          </ol>
+        </div>
+
+        <p class="text-xs text-neutral-content/60">
+          This welcome disappears once you've added a habit or a time block.
+        </p>
+      </div>
+    </div>
     """
   end
 end
