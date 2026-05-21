@@ -18,6 +18,11 @@ defmodule ElectricbrainWeb.Layouts do
     doc:
       "drop the page's max-width — for pages like the planner that benefit from a 3-column desktop layout"
 
+  attr :show_pause_fab, :boolean,
+    default: true,
+    doc:
+      "show the floating Pause button. Hidden on pages where the page itself IS the pause (/moments/new)."
+
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -75,14 +80,14 @@ defmodule ElectricbrainWeb.Layouts do
         timezone={@current_user.timezone || "Etc/UTC"}
       />
 
-      <main class="flex-1 px-4 py-8 sm:px-6 lg:px-8">
+      <main class="flex-1 px-4 py-8 pb-24 sm:px-6 lg:px-8">
         <div class={["mx-auto space-y-6", if(@wide, do: "max-w-none", else: "max-w-5xl")]}>
           {render_slot(@inner_block)}
         </div>
       </main>
 
       <.link
-        :if={@current_user}
+        :if={@current_user && @show_pause_fab}
         navigate={~p"/moments/new"}
         class="fixed bottom-5 right-5 z-30 btn btn-accent btn-circle shadow-lg drop-shadow-[0_0_12px_var(--color-accent)] size-14"
         title="Pause — sit with a craving, urge or feeling"
@@ -151,9 +156,12 @@ defmodule ElectricbrainWeb.Layouts do
       </.link>
     </li>
     <li>
-      <.link href={~p"/sign-out"} method="delete" class="font-medium text-neutral-content/70">
+      <.link
+        href={~p"/sign-out"}
+        method="delete"
+        class="font-medium text-neutral-content/70 whitespace-nowrap"
+      >
         <.icon name="hero-arrow-right-on-rectangle-micro" class="size-4" /> Sign out
-        <span class="text-xs">({@current_user.email})</span>
       </.link>
     </li>
     """

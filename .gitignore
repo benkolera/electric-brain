@@ -38,3 +38,4 @@ npm-debug.log
 # Screenshots from automated browser testing during development.
 /.tmp-screenshots/
 
+.tmp/

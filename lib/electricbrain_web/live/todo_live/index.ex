@@ -191,13 +191,13 @@ defmodule ElectricbrainWeb.TodoLive.Index do
           </div>
 
           <div class="grid sm:grid-cols-[auto_1fr] gap-3 items-end pt-2 border-t border-base-300">
-            <div>
+            <div class="min-w-0">
               <label class="label">
                 <span class="label-text text-xs">Repeats</span>
               </label>
               <select
                 name={@form[:recurrence].name}
-                class="select select-bordered bg-base-100"
+                class="select select-bordered bg-base-100 w-full"
               >
                 <option value="none" selected>(once)</option>
                 <option value="weekly">weekly</option>
@@ -205,11 +205,11 @@ defmodule ElectricbrainWeb.TodoLive.Index do
                 <option value="monthly">monthly</option>
               </select>
             </div>
-            <div>
-              <label class="label">
+            <div class="min-w-0">
+              <label class="label flex-col items-start gap-0.5">
                 <span class="label-text text-xs">First instance (anchor)</span>
-                <span class="label-text-alt text-neutral-content/60">
-                  required if repeating — day, day-of-month and time are taken from here
+                <span class="label-text-alt text-neutral-content/60 whitespace-normal">
+                  required if repeating — sets day, day-of-month and time
                 </span>
               </label>
               <input
@@ -221,7 +221,7 @@ defmodule ElectricbrainWeb.TodoLive.Index do
                     @form[:recurrence_anchor].value
                   )
                 }
-                class="input input-bordered bg-base-100"
+                class="input input-bordered bg-base-100 w-full"
               />
             </div>
           </div>

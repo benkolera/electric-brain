@@ -33,7 +33,7 @@ defmodule ElectricbrainWeb.NoteLive.Index do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 class="font-display text-3xl font-bold tracking-tight text-primary">Notes</h1>
           <p class="text-sm text-neutral-content/70">Markdown thoughts with optional sketches.</p>

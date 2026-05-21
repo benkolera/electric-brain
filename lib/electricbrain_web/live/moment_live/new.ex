@@ -80,7 +80,12 @@ defmodule ElectricbrainWeb.MomentLive.New do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user} now_agenda={assigns[:now_agenda]}>
+    <Layouts.app
+      flash={@flash}
+      current_user={@current_user}
+      now_agenda={assigns[:now_agenda]}
+      show_pause_fab={false}
+    >
       <div class="max-w-xl mx-auto space-y-4">
         <div>
           <.link navigate={~p"/moments"} class="text-xs text-neutral-content/60 hover:underline">
