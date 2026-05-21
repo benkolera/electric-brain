@@ -25,6 +25,11 @@ defmodule ElectricbrainWeb.Endpoint do
     from: :electricbrain,
     gzip: not code_reloading?,
     only: ElectricbrainWeb.static_paths(),
+    # Prod resolves ~p"/manifest.webmanifest" through cache_static_manifest
+    # to `/manifest-<hash>.webmanifest`, whose first path segment isn't in
+    # `only:` (exact match). Match those root-level digested filenames by
+    # prefix here so the browser can fetch them.
+    only_matching: ~w(favicon manifest robots service-worker),
     raise_on_missing_only: code_reloading?
 
   # Code reloading can be explicitly enabled under the
