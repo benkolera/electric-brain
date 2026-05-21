@@ -18,7 +18,8 @@ defmodule ElectricbrainWeb do
   """
 
   def static_paths,
-    do: ~w(assets fonts images favicon.ico favicon.png robots.txt manifest.webmanifest)
+    do:
+      ~w(assets fonts images favicon.ico favicon.png robots.txt manifest.webmanifest service-worker.js)
 
   def router do
     quote do

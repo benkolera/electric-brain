@@ -60,6 +60,12 @@ Single Phoenix app — no umbrella. Deployed as half of the
 - **Google Calendar push** — one-way sync from the planner to the
   user's primary calendar. Idempotent via stored `google_event_id`;
   category colour drives the event colour.
+- **Web push notifications** — opt-in per browser. The Settings page
+  has Enable / Send test / per-device disable. A cron-driven
+  scheduler (`Notifications.Scheduler`) fires a push 5 min before
+  each planner entry's start. VAPID keys configured via
+  `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` env vars in prod;
+  `mix generate.vapid.keys` to mint a pair.
 
 ## Architecture
 
@@ -85,6 +91,7 @@ flowchart LR
         notes[Notes]
         metrics[Metrics<br/>+ Measurement<br/>+ HabitMetric]
         moments[Moments<br/>RAIN journal]
+        notifications[Notifications<br/>PushSubscription]
     end
 
     liveview --> accounts
@@ -109,6 +116,9 @@ flowchart LR
     planner --> timeblocks
 
     metrics -->|"HabitMetric join +<br/>Measurement.completion_id"| habits
+
+    notifications -.->|"5-min lead<br/>cron tick"| planner
+    notifications -.->|"web push"| pushsvc[Browser<br/>Push Service]
 
     planner -.->|"sync"| gcal[Google<br/>Calendar API]
 
