@@ -140,6 +140,32 @@ defmodule ElectricbrainWeb.SettingsLive do
      |> push_event("theme:set", %{theme: theme})}
   end
 
+  def handle_event("save_focus_defaults", %{"work_minutes" => w, "break_minutes" => b}, socket) do
+    user = socket.assigns.current_user
+
+    with {work, _} <- Integer.parse(to_string(w)),
+         {brk, _} <- Integer.parse(to_string(b)) do
+      case user
+           |> Ash.Changeset.for_update(
+             :set_focus_defaults,
+             %{focus_work_minutes: work, focus_break_minutes: brk},
+             actor: user
+           )
+           |> Ash.update() do
+        {:ok, updated} ->
+          {:noreply,
+           socket
+           |> assign(:current_user, updated)
+           |> put_flash(:info, "Focus defaults saved")}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Couldn't save those values.")}
+      end
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Work and break must be whole numbers.")}
+    end
+  end
+
   def handle_event("test_push", _params, socket) do
     user = socket.assigns.current_user
 
@@ -323,6 +349,48 @@ defmodule ElectricbrainWeb.SettingsLive do
               </button>
             <% end %>
           </div>
+        </div>
+      </div>
+
+      <div class="card bg-base-200 border border-base-300">
+        <div class="card-body">
+          <h2 class="card-title">Focus</h2>
+          <p class="text-sm text-neutral-content/70">
+            Defaults for the pomodoro timer. Each session snapshots these
+            at start time, so changing them here only affects future sessions.
+          </p>
+          <form
+            phx-submit="save_focus_defaults"
+            class="grid grid-cols-2 gap-3 mt-2 max-w-sm"
+          >
+            <label class="text-sm">
+              <span class="text-xs text-neutral-content/60">Work (minutes)</span>
+              <input
+                type="number"
+                name="work_minutes"
+                value={@current_user.focus_work_minutes}
+                min="1"
+                max="240"
+                class="input input-sm input-bordered w-full bg-base-100"
+              />
+            </label>
+            <label class="text-sm">
+              <span class="text-xs text-neutral-content/60">Break (minutes)</span>
+              <input
+                type="number"
+                name="break_minutes"
+                value={@current_user.focus_break_minutes}
+                min="0"
+                max="60"
+                class="input input-sm input-bordered w-full bg-base-100"
+              />
+            </label>
+            <div class="col-span-2">
+              <button type="submit" class="btn btn-sm btn-primary">
+                Save defaults
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 

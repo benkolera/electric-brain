@@ -449,6 +449,35 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
     {:noreply, socket |> load_week() |> push_scheduled_events()}
   end
 
+  def handle_event("start_focus_session", %{"id" => id}, socket) do
+    user = socket.assigns.current_user
+    entry = Ash.get!(Entry, id, actor: user)
+
+    target_attrs =
+      case EntryTarget.kind(entry) do
+        :todo -> %{todo_id: entry.todo_id}
+        :habit -> %{habit_id: entry.habit_id}
+        :time_block -> %{time_block_id: entry.time_block_id}
+        _ -> %{}
+      end
+
+    attrs =
+      Map.merge(target_attrs, %{
+        duration_minutes: user.focus_work_minutes,
+        break_minutes: user.focus_break_minutes
+      })
+
+    case Electricbrain.Focus.Session
+         |> Ash.Changeset.for_create(:start, attrs, actor: user)
+         |> Ash.create() do
+      {:ok, _} ->
+        {:noreply, put_flash(socket, :info, "Focus session started.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Couldn't start — already have an active session?")}
+    end
+  end
+
   def handle_event("dismiss_entry", %{"id" => id}, socket) do
     user = socket.assigns.current_user
 
@@ -859,6 +888,15 @@ defmodule ElectricbrainWeb.PlannerLive.Index do
                   <button type="submit" class="btn btn-xs btn-primary">Apply</button>
                 </form>
                 <div class="flex gap-1 mt-2">
+                  <button
+                    type="button"
+                    phx-click="start_focus_session"
+                    phx-value-id={selected.id}
+                    class="btn btn-xs btn-ghost text-primary"
+                    title="Start a pomodoro focused on this"
+                  >
+                    <.icon name="hero-clock-micro" class="size-3.5" /> Focus
+                  </button>
                   <button
                     type="button"
                     phx-click="unschedule_entry"
