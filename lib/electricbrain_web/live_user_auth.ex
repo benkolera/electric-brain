@@ -15,15 +15,27 @@ defmodule ElectricbrainWeb.LiveUserAuth do
 
   def on_mount(:live_user_optional, _params, _session, socket) do
     if socket.assigns[:current_user] do
-      {:cont, socket |> attach_timezone_hook() |> attach_agenda(socket.assigns.current_user)}
+      {:cont,
+       socket
+       |> attach_timezone_hook()
+       |> attach_agenda(socket.assigns.current_user)
+       |> attach_focus_session(socket.assigns.current_user)}
     else
-      {:cont, socket |> assign(:current_user, nil) |> assign(:now_agenda, empty_agenda())}
+      {:cont,
+       socket
+       |> assign(:current_user, nil)
+       |> assign(:now_agenda, empty_agenda())
+       |> assign(:focus_session, nil)}
     end
   end
 
   def on_mount(:live_user_required, _params, _session, socket) do
     if socket.assigns[:current_user] do
-      {:cont, socket |> attach_timezone_hook() |> attach_agenda(socket.assigns.current_user)}
+      {:cont,
+       socket
+       |> attach_timezone_hook()
+       |> attach_agenda(socket.assigns.current_user)
+       |> attach_focus_session(socket.assigns.current_user)}
     else
       {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/sign-in")}
     end
@@ -98,4 +110,64 @@ defmodule ElectricbrainWeb.LiveUserAuth do
   defp handle_agenda_info(_msg, socket), do: {:cont, socket}
 
   defp empty_agenda, do: %{current: [], next: nil}
+
+  defp attach_focus_session(socket, user) do
+    if Phoenix.LiveView.connected?(socket) do
+      Phoenix.PubSub.subscribe(
+        Electricbrain.PubSub,
+        Electricbrain.Focus.Scheduler.topic(user.id)
+      )
+
+      socket
+      |> assign(:focus_session, load_active_focus_session(user))
+      |> Phoenix.LiveView.attach_hook(:focus_sync, :handle_info, &handle_focus_info/2)
+    else
+      assign(socket, :focus_session, nil)
+    end
+  end
+
+  defp load_active_focus_session(user) do
+    require Ash.Query
+
+    Electricbrain.Focus.Session
+    |> Ash.Query.filter(status in [:running, :on_break])
+    |> Ash.Query.limit(1)
+    |> Ash.Query.load([:todo, :habit, :time_block, :category])
+    |> Ash.read!(actor: user)
+    |> List.first()
+  end
+
+  defp handle_focus_info({:focus_session, %{status: status} = session}, socket)
+       when status in [:running, :on_break] do
+    user = socket.assigns.current_user
+
+    loaded =
+      case Ash.load(session, [:todo, :habit, :time_block, :category], actor: user) do
+        {:ok, s} -> s
+        _ -> session
+      end
+
+    # Send_update reaches the LiveComponent reliably across the LV's
+    # render boundary; assigning focus_session on the parent is also
+    # done so any other consumer (e.g. nested layouts) sees it.
+    Phoenix.LiveView.send_update(
+      ElectricbrainWeb.FocusLive.Widget,
+      id: "focus-widget",
+      focus_session: loaded
+    )
+
+    {:halt, assign(socket, :focus_session, loaded)}
+  end
+
+  defp handle_focus_info({:focus_session, _completed_or_abandoned}, socket) do
+    Phoenix.LiveView.send_update(
+      ElectricbrainWeb.FocusLive.Widget,
+      id: "focus-widget",
+      focus_session: nil
+    )
+
+    {:halt, assign(socket, :focus_session, nil)}
+  end
+
+  defp handle_focus_info(_msg, socket), do: {:cont, socket}
 end

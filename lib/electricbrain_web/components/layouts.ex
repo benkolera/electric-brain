@@ -104,6 +104,14 @@ defmodule ElectricbrainWeb.Layouts do
         <.icon name="hero-pause-circle" class="size-7" />
       </.link>
 
+      <.live_component
+        :if={@current_user}
+        module={ElectricbrainWeb.FocusLive.Widget}
+        id="focus-widget"
+        current_user={@current_user}
+        focus_session={assigns[:focus_session]}
+      />
+
       <.flash_group flash={@flash} />
     </div>
     """

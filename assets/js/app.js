@@ -31,6 +31,7 @@ import topbar from "../vendor/topbar"
 import ExcalidrawHooks from "./excalidraw_editor"
 import DirtyFormHooks from "./dirty_form"
 import ImageBlockHooks from "./image_block"
+import FocusCountdownHooks from "./focus_countdown"
 import PlannerCalendar from "./planner_calendar"
 import MetricChart from "./metric_chart"
 import PushSubscription from "./push_subscription"
@@ -46,7 +47,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ...ExcalidrawHooks, ...DirtyFormHooks, ...ImageBlockHooks, TimezoneDetect, PlannerCalendar, MetricChart, PushSubscription},
+  hooks: {...colocatedHooks, ...ExcalidrawHooks, ...DirtyFormHooks, ...ImageBlockHooks, ...FocusCountdownHooks, TimezoneDetect, PlannerCalendar, MetricChart, PushSubscription},
 })
 
 // Show progress bar on live navigation and form submits
