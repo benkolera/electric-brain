@@ -82,6 +82,10 @@ defmodule Electricbrain.Accounts.User do
       accept [:theme_preference]
     end
 
+    update :set_focus_defaults do
+      accept [:focus_work_minutes, :focus_break_minutes]
+    end
+
     update :connect_google do
       description "Stores Google OAuth tokens after a successful OAuth callback"
 
@@ -141,6 +145,10 @@ defmodule Electricbrain.Accounts.User do
       authorize_if expr(id == ^actor(:id))
     end
 
+    policy action(:set_focus_defaults) do
+      authorize_if expr(id == ^actor(:id))
+    end
+
     policy action([:connect_google, :refresh_google_tokens, :disconnect_google]) do
       authorize_if expr(id == ^actor(:id))
     end
@@ -184,6 +192,20 @@ defmodule Electricbrain.Accounts.User do
       allow_nil? false
       default :system
       constraints one_of: [:system, :light, :dark]
+      public? true
+    end
+
+    attribute :focus_work_minutes, :integer do
+      allow_nil? false
+      default 25
+      constraints min: 1, max: 240
+      public? true
+    end
+
+    attribute :focus_break_minutes, :integer do
+      allow_nil? false
+      default 5
+      constraints min: 0, max: 60
       public? true
     end
 
