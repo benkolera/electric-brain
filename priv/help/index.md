@@ -198,6 +198,37 @@ The fields are all optional — the pause itself is the practice; the
 journal is the bonus. History on `/moments` shows past moments
 filtered by kind so you can spot patterns over time.
 
+## Focus — pomodoro timer
+
+The floating **Focus** pill (bottom-left on every page) starts a
+pomodoro session. Default 25 minutes work + 5 minutes break;
+adjust the per-session values in the start dialog, or change your
+defaults under Settings → Focus.
+
+A session can optionally be *aimed* at one of:
+
+* a **todo** (lights up in history under that todo's name),
+* a **habit**,
+* a **time block** (e.g. focusing during a Work block),
+* a **category** (broader than any one item).
+
+Pick "Nothing" for a freestanding session — just "I'm focusing for
+25 minutes". The DB lets each session target at most one of those
+four, so the planner stays the place where things are co-located
+across categories.
+
+Sessions are server-backed, so the widget is in sync across every
+device you're signed into. On the planner, each scheduled entry's
+expanded panel has a "Focus" button that starts a session aimed at
+that entry — one tap, no dialog.
+
+End-of-work and end-of-break fire a push notification (same
+mechanism as planner reminders — enable in Settings → Notifications).
+
+History lives at `/focus`: today's tally up top, then completed and
+abandoned sessions grouped by day. Active sessions only show in the
+floating widget, not in history.
+
 ## Notifications
 
 Settings → Notifications → Enable on this device, per browser.

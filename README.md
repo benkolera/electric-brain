@@ -72,6 +72,14 @@ Single Phoenix app — no umbrella. Deployed as half of the
   and optionally journal through the four RAIN prompts. Designed to be
   mobile-quick — minimum required is the name and intensity. History
   page lists past moments filtered by kind.
+- **Focus** — pomodoro-style sessions, server-backed so all your
+  open clients (desktop + phone) stay in sync. A floating "Focus"
+  pill on every page opens a start dialog with optional targeting:
+  attach to a todo, habit, time block, or category — or run
+  freestanding. End-of-work and end-of-break fire push
+  notifications. Planner entries get an inline "Focus" button that
+  prefills the target. History page at `/focus` groups completed
+  sessions by day with a today tally.
 - **Google Calendar push** — one-way sync from the planner to the
   user's primary calendar. Idempotent via stored `google_event_id`;
   category colour drives the event colour.
@@ -106,6 +114,7 @@ flowchart LR
         notes[Notes]
         metrics[Metrics<br/>+ Measurement<br/>+ HabitMetric]
         moments[Moments<br/>RAIN journal]
+        focus[Focus<br/>Session]
         notifications[Notifications<br/>PushSubscription]
     end
 
@@ -118,6 +127,7 @@ flowchart LR
     liveview --> notes
     liveview --> metrics
     liveview --> moments
+    liveview --> focus
 
     todos --> categories
     habits --> categories
@@ -130,9 +140,15 @@ flowchart LR
     planner --> habits
     planner --> timeblocks
 
+    focus -.->|"optional target<br/>(at most one)"| todos
+    focus -.-> habits
+    focus -.-> timeblocks
+    focus -.-> categories
+
     metrics -->|"HabitMetric join +<br/>Measurement.completion_id"| habits
 
     notifications -.->|"5-min lead<br/>cron tick"| planner
+    notifications -.->|"end-of-work +<br/>end-of-break"| focus
     notifications -.->|"web push"| pushsvc[Browser<br/>Push Service]
 
     planner -.->|"sync"| gcal[Google<br/>Calendar API]
