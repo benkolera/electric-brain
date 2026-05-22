@@ -17,7 +17,8 @@ defmodule Electricbrain.Application do
         {DynamicSupervisor, strategy: :one_for_one, name: Electricbrain.Agenda.Supervisor},
         ElectricbrainWeb.Endpoint,
         {AshAuthentication.Supervisor, [otp_app: :electricbrain]},
-        Electricbrain.Notifications.Scheduler
+        Electricbrain.Notifications.Scheduler,
+        Electricbrain.Focus.Scheduler
       ] ++ image_store_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html

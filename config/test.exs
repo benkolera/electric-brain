@@ -2,6 +2,15 @@ import Config
 config :electricbrain, token_signing_secret: "AipXgxZip7mQmVkrTEaKaZk8MWlP+++J"
 config :electricbrain, :notifications, enabled: false
 config :electricbrain, :notes_image_store_adapter, Electricbrain.Notes.ImageStore.Memory
+
+# Speed up the focus scheduler so duration_minutes:1 fires in ~10ms.
+# Tests using the scheduler still pay this delay; budget accordingly.
+config :electricbrain, :focus_minute_ms, 10
+# Skip boot_sweep — the supervised Scheduler runs outside any test's
+# Ecto sandbox so a query at boot would fail and bring the supervisor
+# down via restart-intensity. Tests that need sweep behaviour can call
+# the sweep manually after allowing the sandbox.
+config :electricbrain, :focus_scheduler, sweep: false
 config :bcrypt_elixir, log_rounds: 1
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 

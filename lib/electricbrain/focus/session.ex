@@ -57,6 +57,7 @@ defmodule Electricbrain.Focus.Session do
       change relate_actor(:user)
       change set_attribute(:status, :running)
       change set_attribute(:started_at, &DateTime.utc_now/0)
+      change Electricbrain.Focus.Changes.Track
     end
 
     update :start_break do
@@ -65,6 +66,7 @@ defmodule Electricbrain.Focus.Session do
 
       change set_attribute(:status, :on_break)
       change set_attribute(:break_started_at, &DateTime.utc_now/0)
+      change Electricbrain.Focus.Changes.Track
     end
 
     update :complete do
@@ -73,6 +75,7 @@ defmodule Electricbrain.Focus.Session do
 
       change set_attribute(:status, :completed)
       change set_attribute(:ended_at, &DateTime.utc_now/0)
+      change Electricbrain.Focus.Changes.Track
     end
 
     update :abandon do
@@ -81,6 +84,7 @@ defmodule Electricbrain.Focus.Session do
 
       change set_attribute(:status, :abandoned)
       change set_attribute(:ended_at, &DateTime.utc_now/0)
+      change Electricbrain.Focus.Changes.Track
     end
   end
 
