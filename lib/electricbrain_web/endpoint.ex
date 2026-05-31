@@ -57,5 +57,17 @@ defmodule ElectricbrainWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
+
+  # CORS for the /api/g2/* surface used by the Even Hub plugin —
+  # WebView origins are opaque and the API is bearer-protected, so
+  # `*` is the right scope. Placed before the router so that OPTIONS
+  # preflights are answered (the router rejects unknown methods on a
+  # path before pipelines run).
+  plug CORSPlug,
+    origin: "*",
+    methods: ["GET", "POST", "DELETE", "OPTIONS"],
+    headers: ["authorization", "content-type", "accept"],
+    max_age: 86_400
+
   plug ElectricbrainWeb.Router
 end
