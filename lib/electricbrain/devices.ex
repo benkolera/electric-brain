@@ -112,6 +112,27 @@ defmodule Electricbrain.Devices do
   end
 
   @doc """
+  PubSub topic used to nudge the SSE stream for a user out-of-band
+  (e.g. the "Send test push" button on the Settings page). Distinct
+  from `Agenda.topic/1` and `Focus.Scheduler.topic/1` so the test
+  payload never gets confused with a real state-change broadcast.
+  """
+  def test_topic(user_id), do: "g2:user:#{user_id}:test"
+
+  @doc """
+  Broadcasts a `:test_push` message on the user's test topic. The
+  SSE controller subscribes to this and emits a `change` event so
+  the plugin can wake the HUD as a connectivity check.
+  """
+  def send_test_push(user) do
+    Phoenix.PubSub.broadcast(
+      Electricbrain.PubSub,
+      test_topic(user.id),
+      :test_push
+    )
+  end
+
+  @doc """
   Composes the user-facing API state — current/next planner entry,
   active focus session, and today's habits with this-period progress.
   Shape is fixed by the `/api/g2/state` JSON contract.

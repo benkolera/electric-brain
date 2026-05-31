@@ -208,6 +208,18 @@ defmodule ElectricbrainWeb.SettingsLive do
      |> assign(:g2_pairing_code, current_code(user))}
   end
 
+  def handle_event("send_g2_test", _params, socket) do
+    user = socket.assigns.current_user
+    :ok = Devices.send_test_push(user)
+
+    {:noreply,
+     put_flash(
+       socket,
+       :info,
+       "Test push sent. Your glasses should wake within a second if connected."
+     )}
+  end
+
   def handle_event("delete_g2_pairing", %{"id" => id}, socket) do
     user = socket.assigns.current_user
 
@@ -443,6 +455,20 @@ defmodule ElectricbrainWeb.SettingsLive do
                 </li>
               <% end %>
             </ul>
+
+            <div class="mt-3 pt-3 border-t border-base-300">
+              <button
+                type="button"
+                phx-click="send_g2_test"
+                class="btn btn-xs btn-ghost"
+              >
+                <.icon name="hero-paper-airplane-micro" class="size-3.5" /> Send test to glasses
+              </button>
+              <span class="text-xs text-neutral-content/60 ml-2">
+                Wakes the HUD via the SSE stream — independent of the Notifications card,
+                which targets your browser.
+              </span>
+            </div>
           <% end %>
         </div>
       </div>
