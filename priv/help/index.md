@@ -238,6 +238,28 @@ On iPhone you must install the app to the home screen first —
 share → Add to Home Screen → open the installed icon → then Enable.
 Safari tabs don't get web push.
 
+## Even Hub (G2 glasses)
+
+If you wear Even Realities G2 smart glasses, the Trellis **Even Hub
+plugin** surfaces three things on the HUD:
+
+* **Now / Next** — the planner entry happening now plus the one
+  coming up, with minutes remaining / until.
+* **Live focus countdown** — when a focus session is running, large
+  mm:ss for work and break.
+* **Today's habits** — daily-period habits, plus any week/month
+  habits still owed.
+
+**Pairing.** Settings → Even Hub glasses → Pair Even Hub plugin.
+A 6-character code appears (valid for 10 minutes). Open the Trellis
+plugin in your Even Hub and type the code; it exchanges the code for
+a long-lived token stored on the plugin. Unpair from the same Settings
+card any time.
+
+The plugin polls every 10–30 seconds, so the HUD lags real-time by
+about that much. Trellis only ever stores a hash of the pairing token
+— the cleartext is shown to the plugin exactly once during pairing.
+
 ## How they link together
 
 The mental model is a thin one:

@@ -63,6 +63,7 @@ config :electricbrain,
     Electricbrain.Moments,
     Electricbrain.Notifications,
     Electricbrain.Focus,
+    Electricbrain.Devices,
     Electricbrain.Accounts
   ]
 

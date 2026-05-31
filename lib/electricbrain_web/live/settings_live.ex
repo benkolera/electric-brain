@@ -3,18 +3,25 @@ defmodule ElectricbrainWeb.SettingsLive do
 
   require Ash.Query
 
+  alias Electricbrain.Devices
+  alias Electricbrain.Devices.Pairing
+  alias Electricbrain.Devices.PairingCode
   alias Electricbrain.GoogleCalendar
   alias Electricbrain.Notifications.Push
   alias Electricbrain.Notifications.PushSubscription
 
   @impl true
   def mount(_params, _session, socket) do
+    user = socket.assigns.current_user
+
     {:ok,
      socket
      |> assign(:page_title, "Settings")
      |> assign(:vapid_public_key, vapid_public_key())
      |> assign(:push_environment, nil)
-     |> assign(:push_subscriptions, list_subscriptions(socket.assigns.current_user))}
+     |> assign(:push_subscriptions, list_subscriptions(user))
+     |> assign(:g2_pairings, list_pairings(user))
+     |> assign(:g2_pairing_code, current_code(user))}
   end
 
   defp vapid_public_key do
@@ -25,6 +32,21 @@ defmodule ElectricbrainWeb.SettingsLive do
     PushSubscription
     |> Ash.Query.sort(inserted_at: :desc)
     |> Ash.read!(actor: user)
+  end
+
+  defp list_pairings(user) do
+    Pairing
+    |> Ash.Query.sort(inserted_at: :desc)
+    |> Ash.read!(actor: user)
+  end
+
+  defp current_code(user) do
+    now = DateTime.utc_now()
+
+    PairingCode
+    |> Ash.Query.sort(inserted_at: :desc)
+    |> Ash.read!(actor: user)
+    |> Enum.find(fn c -> DateTime.compare(c.expires_at, now) == :gt end)
   end
 
   @impl true
@@ -164,6 +186,39 @@ defmodule ElectricbrainWeb.SettingsLive do
     else
       _ -> {:noreply, put_flash(socket, :error, "Work and break must be whole numbers.")}
     end
+  end
+
+  def handle_event("generate_g2_code", _params, socket) do
+    user = socket.assigns.current_user
+    code = Devices.generate_code!(user)
+
+    {:noreply,
+     socket
+     |> assign(:g2_pairing_code, code)
+     |> assign(:g2_pairings, list_pairings(user))
+     |> put_flash(:info, "Pairing code generated — type it into Trellis on Even Hub.")}
+  end
+
+  def handle_event("refresh_g2_pairings", _params, socket) do
+    user = socket.assigns.current_user
+
+    {:noreply,
+     socket
+     |> assign(:g2_pairings, list_pairings(user))
+     |> assign(:g2_pairing_code, current_code(user))}
+  end
+
+  def handle_event("delete_g2_pairing", %{"id" => id}, socket) do
+    user = socket.assigns.current_user
+
+    Pairing
+    |> Ash.get!(id, actor: user)
+    |> Ash.destroy!(actor: user)
+
+    {:noreply,
+     socket
+     |> assign(:g2_pairings, list_pairings(user))
+     |> put_flash(:info, "Even Hub device unpaired.")}
   end
 
   def handle_event("test_push", _params, socket) do
@@ -314,6 +369,73 @@ defmodule ElectricbrainWeb.SettingsLive do
                     phx-click="delete_subscription"
                     phx-value-id={sub.id}
                     data-confirm="Disable notifications on this device?"
+                    class="btn btn-xs btn-ghost text-error"
+                  >
+                    <.icon name="hero-x-mark-micro" class="size-4" />
+                  </button>
+                </li>
+              <% end %>
+            </ul>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="card bg-base-200 border border-base-300">
+        <div class="card-body">
+          <h2 class="card-title">Even Hub glasses</h2>
+          <p class="text-sm text-neutral-content/70">
+            Surface your now / next entry, live focus countdown, and today's
+            habits on Even Realities G2 glasses via the Trellis Even Hub plugin.
+            Pair one phone per pair of glasses.
+          </p>
+
+          <%= if @g2_pairing_code do %>
+            <div class="mt-3 rounded border border-base-300 bg-base-100 p-3">
+              <p class="text-xs text-neutral-content/70 mb-1">Pairing code (10-min expiry)</p>
+              <p class="font-mono text-2xl tracking-[0.4em] font-semibold">
+                {@g2_pairing_code.code}
+              </p>
+              <p class="text-xs text-neutral-content/60 mt-1">
+                Open the Trellis plugin on Even Hub and enter this code.
+              </p>
+              <button
+                type="button"
+                phx-click="refresh_g2_pairings"
+                class="btn btn-xs btn-ghost mt-2"
+              >
+                <.icon name="hero-arrow-path-micro" class="size-3.5" /> I've entered it
+              </button>
+            </div>
+          <% else %>
+            <div class="flex flex-wrap items-center gap-2 mt-2">
+              <button type="button" phx-click="generate_g2_code" class="btn btn-sm btn-primary">
+                <.icon name="hero-key-micro" class="size-4" /> Pair Even Hub plugin
+              </button>
+            </div>
+          <% end %>
+
+          <%= if @g2_pairings != [] do %>
+            <ul class="mt-3 space-y-1">
+              <%= for p <- @g2_pairings do %>
+                <li class="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-base-300/40 text-sm">
+                  <.icon name="hero-eye-micro" class="size-4 text-neutral-content/60" />
+                  <span class="font-medium">{p.label}</span>
+                  <span class="text-xs text-neutral-content/60">
+                    <%= if p.last_seen_at do %>
+                      last seen {Calendar.strftime(
+                        DateTime.shift_zone!(p.last_seen_at, @current_user.timezone || "Etc/UTC"),
+                        "%Y-%m-%d %H:%M"
+                      )}
+                    <% else %>
+                      paired, awaiting first request
+                    <% end %>
+                  </span>
+                  <div class="flex-1"></div>
+                  <button
+                    type="button"
+                    phx-click="delete_g2_pairing"
+                    phx-value-id={p.id}
+                    data-confirm="Unpair this device?"
                     class="btn btn-xs btn-ghost text-error"
                   >
                     <.icon name="hero-x-mark-micro" class="size-4" />

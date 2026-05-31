@@ -21,6 +21,14 @@ defmodule ElectricbrainWeb.Router do
     plug :set_actor, :user
   end
 
+  pipeline :accepts_json do
+    plug :accepts, ["json"]
+  end
+
+  pipeline :g2_authenticated do
+    plug ElectricbrainWeb.Plugs.G2TokenAuth
+  end
+
   # ALB target group health check — outside :browser, no auth, no session.
   # Must remain excluded from force_ssl (config/prod.exs) so the ALB's
   # HTTP probe doesn't get a 301.
@@ -107,10 +115,22 @@ defmodule ElectricbrainWeb.Router do
     end
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", ElectricbrainWeb do
-  #   pipe_through :api
-  # end
+  # Unauthenticated pairing exchange — accepts a short-lived code in the
+  # body and returns a long-lived bearer. Kept off the `:api` pipeline so
+  # `load_from_bearer` doesn't try to interpret the code as a JWT.
+  scope "/api/g2", ElectricbrainWeb do
+    pipe_through [:accepts_json]
+
+    post "/pair", G2Controller, :pair
+  end
+
+  scope "/api/g2", ElectricbrainWeb do
+    pipe_through [:accepts_json, :g2_authenticated]
+
+    get "/state", G2Controller, :state
+    post "/touch", G2Controller, :touch
+    delete "/pairing", G2Controller, :unpair
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:electricbrain, :dev_routes) do

@@ -83,6 +83,12 @@ Single Phoenix app — no umbrella. Deployed as half of the
 - **Google Calendar push** — one-way sync from the planner to the
   user's primary calendar. Idempotent via stored `google_event_id`;
   category colour drives the event colour.
+- **Even Hub (G2 glasses)** — a separate Even Hub plugin pulls Trellis
+  state onto Even Realities G2 smart glasses: now / next planner entry,
+  live focus countdown, and today's habit nudges. Pairing is a 6-char
+  code generated in Settings, then redeemed by the plugin for a
+  long-lived bearer token (stored as a SHA-256 hash). State is served by
+  a small JSON API at `/api/g2/*`; the plugin polls every 10–30 s.
 - **Web push notifications** — opt-in per browser. The Settings page
   has Enable / Send test / per-device disable. A cron-driven
   scheduler (`Notifications.Scheduler`) fires a push 5 min before
@@ -116,6 +122,7 @@ flowchart LR
         moments[Moments<br/>RAIN journal]
         focus[Focus<br/>Session]
         notifications[Notifications<br/>PushSubscription]
+        devices[Devices<br/>Pairing + PairingCode]
     end
 
     liveview --> accounts
@@ -152,6 +159,12 @@ flowchart LR
     notifications -.->|"web push"| pushsvc[Browser<br/>Push Service]
 
     planner -.->|"sync"| gcal[Google<br/>Calendar API]
+
+    g2plugin[Even Hub plugin<br/>G2 glasses HUD]
+    g2plugin -.->|"poll /api/g2/state<br/>bearer token"| devices
+    devices -.->|"reads"| planner
+    devices -.->|"reads"| focus
+    devices -.->|"reads"| habits
 
     auth0 -.->|"OAuth callback"| accounts
 ```
