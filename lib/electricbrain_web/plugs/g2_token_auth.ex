@@ -35,12 +35,28 @@ defmodule ElectricbrainWeb.Plugs.G2TokenAuth do
   end
 
   defp bearer_token(conn) do
+    header_token(conn) || query_token(conn)
+  end
+
+  defp header_token(conn) do
     conn
     |> get_req_header("authorization")
     |> List.first()
     |> case do
       "Bearer " <> token -> String.trim(token)
       "bearer " <> token -> String.trim(token)
+      _ -> nil
+    end
+  end
+
+  # EventSource (and a handful of other client APIs) can't set custom
+  # headers, so the bearer can also ride as `?access_token=...`. The
+  # token still flows over TLS but it will land in ALB access logs;
+  # only used by SSE today, and per-device tokens are revocable from
+  # the Settings page.
+  defp query_token(conn) do
+    case fetch_query_params(conn).query_params do
+      %{"access_token" => token} when is_binary(token) and token != "" -> token
       _ -> nil
     end
   end

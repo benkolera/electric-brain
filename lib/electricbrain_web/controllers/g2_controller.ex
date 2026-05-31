@@ -12,7 +12,15 @@ defmodule ElectricbrainWeb.G2Controller do
 
   use ElectricbrainWeb, :controller
 
+  require Logger
+
+  alias Electricbrain.Agenda
   alias Electricbrain.Devices
+  alias Electricbrain.Focus
+
+  # Heartbeat well under the ALB's 120s idle timeout so the connection
+  # never goes silent enough for the load balancer to close it.
+  @heartbeat_ms 30_000
 
   def pair(conn, %{"code" => code} = params) do
     label = Map.get(params, "label", "Even Hub")
@@ -49,5 +57,71 @@ defmodule ElectricbrainWeb.G2Controller do
 
     Ash.destroy!(pairing, actor: user)
     json(conn, %{ok: true})
+  end
+
+  @doc """
+  Long-lived `text/event-stream` of change notifications. Subscribes
+  to the actor's `Agenda` and `Focus` PubSub topics; pushes a
+  signal-only `change` SSE event whenever either fires. Heartbeat
+  comments every #{@heartbeat_ms}ms keep the ALB from closing the
+  connection. The client uses each event to trigger its existing
+  `/api/g2/state` fetch + diff path, so payload stays tiny.
+  """
+  def stream(conn, _params) do
+    user = conn.assigns.current_user
+
+    # Make sure the per-user agenda actor is alive so we'll actually
+    # receive `:agenda_changed` messages on the topic.
+    _ = Agenda.ensure_started(user.id)
+    Phoenix.PubSub.subscribe(Electricbrain.PubSub, Agenda.topic(user.id))
+    Phoenix.PubSub.subscribe(Electricbrain.PubSub, Focus.Scheduler.topic(user.id))
+
+    conn =
+      conn
+      |> put_resp_header("content-type", "text/event-stream")
+      |> put_resp_header("cache-control", "no-cache")
+      # Hint to any in-path reverse proxy (e.g. nginx) to not buffer.
+      # ALB doesn't read this but it's free insurance.
+      |> put_resp_header("x-accel-buffering", "no")
+      |> send_chunked(200)
+
+    case emit_comment(conn, "connected") do
+      {:ok, conn} -> sse_loop(conn)
+      {:error, _} -> conn
+    end
+  end
+
+  defp sse_loop(conn) do
+    receive do
+      {:agenda_changed, _} ->
+        case emit_event(conn, "change", ~s({"reason":"agenda"})) do
+          {:ok, conn} -> sse_loop(conn)
+          {:error, _} -> conn
+        end
+
+      {:focus_session, _} ->
+        case emit_event(conn, "change", ~s({"reason":"focus"})) do
+          {:ok, conn} -> sse_loop(conn)
+          {:error, _} -> conn
+        end
+
+      _other ->
+        # Some unrelated subscriber traffic on a shared inbox — ignore.
+        sse_loop(conn)
+    after
+      @heartbeat_ms ->
+        case emit_comment(conn, "ping") do
+          {:ok, conn} -> sse_loop(conn)
+          {:error, _} -> conn
+        end
+    end
+  end
+
+  defp emit_event(conn, event, data) do
+    Plug.Conn.chunk(conn, "event: #{event}\ndata: #{data}\n\n")
+  end
+
+  defp emit_comment(conn, text) do
+    Plug.Conn.chunk(conn, ": #{text}\n\n")
   end
 end

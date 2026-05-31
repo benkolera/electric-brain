@@ -132,6 +132,16 @@ defmodule ElectricbrainWeb.Router do
     delete "/pairing", G2Controller, :unpair
   end
 
+  # Server-Sent Events stream — separate scope because the response
+  # is `text/event-stream`, not JSON. Auth uses the same
+  # `G2TokenAuth` plug, which falls back to `?access_token=` when
+  # there's no Authorization header (EventSource can't set headers).
+  scope "/api/g2", ElectricbrainWeb do
+    pipe_through [:g2_authenticated]
+
+    get "/stream", G2Controller, :stream
+  end
+
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:electricbrain, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put

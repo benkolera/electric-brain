@@ -103,4 +103,37 @@ defmodule ElectricbrainWeb.G2ControllerTest do
       assert {:error, _} = Ash.get(Pairing, pairing.id, authorize?: false)
     end
   end
+
+  describe "query-param token auth (for EventSource)" do
+    test "accepts ?access_token= as a bearer fallback on the JSON endpoints",
+         %{conn: conn, user: user} do
+      {token, _} = pair!(user)
+
+      assert conn
+             |> get(~p"/api/g2/state?access_token=#{token}")
+             |> json_response(200)
+             |> Map.has_key?("now")
+    end
+
+    test "401 with ?access_token=garbage", %{conn: conn} do
+      assert conn
+             |> get(~p"/api/g2/state?access_token=garbage")
+             |> json_response(401) == %{"error" => "unauthorized"}
+    end
+  end
+
+  describe "GET /api/g2/stream" do
+    test "401 without a token", %{conn: conn} do
+      assert conn |> get(~p"/api/g2/stream") |> json_response(401) ==
+               %{"error" => "unauthorized"}
+    end
+
+    # The live streaming body (initial `: connected` frame, subsequent
+    # `event: change` frames after a PubSub broadcast) is awkward to
+    # assert via Plug.Test — the controller blocks in `receive` and
+    # the test process can't read partial chunks without spinning up
+    # a real HTTP server. Auth coverage above is enough to catch the
+    # most likely regression (route + plug wiring); the framing path
+    # is exercised end-to-end via `curl -N` in development.
+  end
 end
