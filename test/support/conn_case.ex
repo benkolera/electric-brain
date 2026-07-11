@@ -39,10 +39,20 @@ defmodule ElectricbrainWeb.ConnCase do
 
   @doc """
   Logs the given user in by issuing a JWT and storing it in the session.
+
+  Also registers a teardown that stops the user's `Electricbrain.Agenda`
+  GenServer. Any connected LiveView mount spawns one (LiveUserAuth's
+  agenda hook), and it would otherwise outlive the test's SQL sandbox —
+  a later DB call from the leaked actor tears down the shared sandbox
+  connection and flakes whichever test is running at the time. This
+  on_exit runs before `setup_sandbox`'s owner shutdown (LIFO), so the
+  actor dies while its connection owner is still alive.
   """
   def log_in_user(conn, user) do
     {:ok, token, _claims} = AshAuthentication.Jwt.token_for_user(user)
     user = Ash.Resource.put_metadata(user, :token, token)
+
+    ExUnit.Callbacks.on_exit(fn -> Electricbrain.Agenda.stop(user.id) end)
 
     conn
     |> Phoenix.ConnTest.init_test_session(%{})
