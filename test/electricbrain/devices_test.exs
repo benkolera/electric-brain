@@ -131,7 +131,7 @@ defmodule Electricbrain.DevicesTest do
   end
 
   describe "state_for/1" do
-    test "shape includes now/next/focus/habits_today", %{user: user} do
+    test "shape includes now/next/focus/strength/habits_today", %{user: user} do
       state = Devices.state_for(user)
 
       assert Map.has_key?(state, :now)
@@ -139,6 +139,39 @@ defmodule Electricbrain.DevicesTest do
       assert Map.has_key?(state, :focus)
       assert Map.has_key?(state, :habits_today)
       assert is_list(state.habits_today)
+      assert is_nil(state.strength)
+    end
+
+    test "strength payload reflects the active workout", %{user: user} do
+      :ok = Electricbrain.Training.ensure_setup!(user)
+      {:ok, workout} = Electricbrain.Training.start_workout!(user)
+
+      state = Devices.state_for(user)
+      assert state.strength.template == "A"
+      assert state.strength.exercise == "Back squat"
+      assert state.strength.set == 1
+      assert state.strength.total_sets == 5
+      assert state.strength.target_reps == 5
+      assert state.strength.weight_kg == 20.0
+      assert state.strength.done_sets == 0
+      assert state.strength.session_sets == length(workout.sets)
+      assert is_nil(state.strength.rest_ends_at)
+
+      # Log the first set: current advances, rest countdown arms.
+      hd(workout.sets)
+      |> Ash.Changeset.for_update(:log, %{actual_reps: 5}, actor: user)
+      |> Ash.update!()
+
+      state = Devices.state_for(user)
+      assert state.strength.set == 2
+      assert state.strength.done_sets == 1
+      assert state.strength.rest_ends_in_s > 0
+
+      # Completion clears the card.
+      workout = Electricbrain.Training.active_workout(user)
+      Electricbrain.Training.complete_workout!(user, workout)
+
+      assert is_nil(Devices.state_for(user).strength)
     end
   end
 end

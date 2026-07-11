@@ -75,6 +75,7 @@ defmodule ElectricbrainWeb.G2Controller do
     _ = Agenda.ensure_started(user.id)
     Phoenix.PubSub.subscribe(Electricbrain.PubSub, Agenda.topic(user.id))
     Phoenix.PubSub.subscribe(Electricbrain.PubSub, Focus.Scheduler.topic(user.id))
+    Phoenix.PubSub.subscribe(Electricbrain.PubSub, Electricbrain.Training.topic(user.id))
     Phoenix.PubSub.subscribe(Electricbrain.PubSub, Devices.test_topic(user.id))
 
     conn =
@@ -102,6 +103,12 @@ defmodule ElectricbrainWeb.G2Controller do
 
       {:focus_session, _} ->
         case emit_event(conn, "change", ~s({"reason":"focus"})) do
+          {:ok, conn} -> sse_loop(conn)
+          {:error, _} -> conn
+        end
+
+      {:training_workout, _} ->
+        case emit_event(conn, "change", ~s({"reason":"training"})) do
           {:ok, conn} -> sse_loop(conn)
           {:error, _} -> conn
         end

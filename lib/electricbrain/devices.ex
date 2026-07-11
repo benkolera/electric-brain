@@ -163,8 +163,57 @@ defmodule Electricbrain.Devices do
       now: now_payload(user),
       next: next_payload(user),
       focus: focus_payload(user),
+      strength: strength_payload(user),
       habits_today: habits_today_payload(user)
     }
+  end
+
+  # The in-gym HUD card: current set (first unlogged in position
+  # order), session progress, and the rest countdown anchored to the
+  # latest logged set. Nil when no workout is active.
+  defp strength_payload(user) do
+    case Electricbrain.Training.active_workout(user) do
+      nil ->
+        nil
+
+      workout ->
+        now = DateTime.utc_now()
+        current = Enum.find(workout.sets, &is_nil(&1.actual_reps))
+        rest_ends_at = rest_ends_at(user, workout, now)
+
+        %{
+          template: workout.template_name,
+          exercise: current && current.exercise_name,
+          set: current && current.set_number,
+          total_sets: current && total_sets_for(workout, current),
+          target_reps: current && current.target_reps,
+          weight_kg:
+            current && current.prescribed_weight_kg &&
+              Decimal.to_float(current.prescribed_weight_kg),
+          done_sets: Enum.count(workout.sets, & &1.completed_at),
+          session_sets: length(workout.sets),
+          rest_ends_at: rest_ends_at,
+          rest_ends_in_s: rest_ends_at && Kernel.max(0, DateTime.diff(rest_ends_at, now, :second))
+        }
+    end
+  end
+
+  defp total_sets_for(workout, current) do
+    Enum.count(workout.sets, &(&1.exercise_id == current.exercise_id))
+  end
+
+  defp rest_ends_at(user, workout, now) do
+    with %{} = latest <-
+           workout.sets
+           |> Enum.filter(& &1.completed_at)
+           |> Enum.max_by(&DateTime.to_unix(&1.completed_at, :microsecond), fn -> nil end) do
+      rest_seconds =
+        latest.exercise.rest_seconds ||
+          Electricbrain.Training.settings_for(user).default_rest_seconds
+
+      ends_at = DateTime.add(latest.completed_at, rest_seconds, :second)
+      if DateTime.compare(ends_at, now) == :gt, do: ends_at
+    end
   end
 
   defp now_payload(user) do

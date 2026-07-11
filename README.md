@@ -106,7 +106,10 @@ Single Phoenix app — no umbrella. Deployed as half of the
   category colour drives the event colour.
 - **Even Hub (G2 glasses)** — a separate Even Hub plugin pulls Trellis
   state onto Even Realities G2 smart glasses: now / next planner entry,
-  live focus countdown, and today's habit nudges. Pairing is a 6-char
+  live focus countdown, today's habit nudges, and (server-side ready)
+  the in-gym strength card — current exercise, set x of y, target reps
+  @ weight, rest countdown. (Rendering the strength card needs a
+  plugin-repo update.) Pairing is a 6-char
   code generated in Settings, then redeemed by the plugin for a
   long-lived bearer token (stored as a SHA-256 hash). State is served by
   a small JSON API at `/api/g2/*`; the plugin polls every 10–30 s.
