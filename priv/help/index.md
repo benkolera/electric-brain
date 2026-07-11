@@ -202,6 +202,34 @@ Meal times (breakfast, shake, lunch, snack, dinner) and the Saturday
 shopping / Sunday prep reminder times also live here — the meal
 scheduler fires reminders at these times in your local timezone.
 
+## Meals — the weekly plan
+
+`/meals` shows one week (Mon–Fri) as a grid of five daily slots:
+breakfast, shake, lunch, snack, dinner. From Saturday the page
+defaults to the **upcoming** week — Saturday shop and Sunday prep
+serve the week ahead.
+
+**Generate** builds the week automatically:
+
+1. Picks 2 breakfasts, 2 mains, 1 snack, and 1 shake from your
+   recipes — rotating week to week and avoiding last week's picks
+   when the library is big enough
+2. Alternates them across the days (Mon/Wed/Fri vs Tue/Thu, mains
+   swapping between lunch and dinner)
+3. Scales each recipe's servings so days land on your calorie
+   target, in practical quarter-serving steps
+4. Adds shakes wherever a day's protein falls short, up to your
+   max-shakes-per-day
+5. Flags anything it couldn't reach as warnings on the plan
+
+The generated week is a **draft**: swap any cell to a different
+recipe, adjust servings, regenerate entirely, and watch the per-day
+totals against your targets. Targets are snapshotted at generation,
+so later profile tweaks don't shift a planned week.
+
+**Confirm** locks the week in. That's the Saturday moment: confirm,
+then shop.
+
 ## Planner — the weekly grid
 
 The `/plan` page is the central surface — a Schedule-X calendar

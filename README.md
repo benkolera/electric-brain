@@ -66,16 +66,18 @@ Single Phoenix app — no umbrella. Deployed as half of the
   "yellow brick road" goal (`at_least` / `at_most` × a value per
   day/week/month); the chart overlays the road line and an on-track /
   off-track pill shows the current bucket's standing.
-- **Meals (ingredients + recipes)** — the foundation of meal
-  planning: a searchable per-100g macro library seeded from the
-  Australian Food Composition Database (1,588 foods, CC-BY FSANZ)
-  plus custom entries typed in from packet labels. Recipes are built
-  from ingredient lines (grams) with per-serving macros calculated
-  for free, and are tagged breakfast / main / snack / shake for the
-  weekly plan generator. A nutrition profile computes daily
+- **Meals** — macro-driven weekly meal planning around a Saturday
+  shop and Sunday prep. An ingredient library (per-100g macros,
+  seeded from the Australian Food Composition Database's 1,588 foods
+  + custom packet-label entries) feeds recipes whose per-serving
+  macros are calculated for free. A nutrition profile computes daily
   calorie/macro targets (Mifflin-St Jeor BMR → TDEE → cut/bulk rate,
   protein by g/kg) from the latest reading of your weight metric,
-  with per-field manual overrides.
+  with per-field manual overrides. The weekly plan auto-generates on
+  the cookbook model — 2 breakfasts, 2 mains alternating across
+  lunch/dinner, a daily snack, protein shakes topping up shortfalls —
+  scales servings to hit the targets, and is reviewed (swap /
+  reservings / regenerate) then confirmed.
 - **Moments** — radical-acceptance pauses (Tara Brach's RAIN: Recognize,
   Allow, Investigate, Nurture). When a craving, urge or feeling pulls,
   open the floating "Pause" button, name what's there, slide an intensity,
@@ -129,7 +131,7 @@ flowchart LR
         planner[Planner.Entry]
         notes[Notes]
         metrics[Metrics<br/>+ Measurement<br/>+ HabitMetric]
-        meals[Meals<br/>Ingredient + Recipe<br/>+ NutritionProfile]
+        meals[Meals<br/>Ingredient + Recipe<br/>+ NutritionProfile<br/>+ MealWeek]
         moments[Moments<br/>RAIN journal]
         focus[Focus<br/>Session]
         notifications[Notifications<br/>PushSubscription]

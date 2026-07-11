@@ -7,6 +7,8 @@ defmodule Electricbrain.Meals do
     resource Electricbrain.Meals.Recipe
     resource Electricbrain.Meals.RecipeIngredient
     resource Electricbrain.Meals.NutritionProfile
+    resource Electricbrain.Meals.MealWeek
+    resource Electricbrain.Meals.PlannedMeal
   end
 
   require Ash.Query
