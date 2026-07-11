@@ -345,6 +345,11 @@ working weights before the first session — defaults start near the
 bar) and progression parameters, plus the template editor. Editing a
 weight resets that lift's stall count.
 
+**Reminders**: on each training day, at your reminder time, a push
+arrives with the next prescription ("Session A: Back squat 5×5 @
+82.5 kg"). It stays quiet if you've already trained (or are
+mid-workout) that day, and fires at most once per day.
+
 ## Planner — the weekly grid
 
 The `/plan` page is the central surface — a Schedule-X calendar
