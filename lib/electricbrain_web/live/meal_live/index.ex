@@ -250,6 +250,12 @@ defmodule ElectricbrainWeb.MealLive.Index do
             <% else %>
               <span class="badge badge-success badge-sm">Confirmed</span>
               <div class="flex-1"></div>
+              <.link
+                navigate={~p"/meals/shopping?week=#{Date.to_iso8601(@week_start)}"}
+                class="btn btn-ghost btn-sm"
+              >
+                <.icon name="hero-shopping-cart-micro" class="size-4" /> Shopping list
+              </.link>
             <% end %>
           </div>
 

@@ -77,7 +77,9 @@ Single Phoenix app — no umbrella. Deployed as half of the
   the cookbook model — 2 breakfasts, 2 mains alternating across
   lunch/dinner, a daily snack, protein shakes topping up shortfalls —
   scales servings to hit the targets, and is reviewed (swap /
-  reservings / regenerate) then confirmed.
+  reservings / regenerate) then confirmed. Confirming builds a
+  checkable shopping list with per-ingredient gram totals for the
+  Saturday shop.
 - **Moments** — radical-acceptance pauses (Tara Brach's RAIN: Recognize,
   Allow, Investigate, Nurture). When a craving, urge or feeling pulls,
   open the floating "Pause" button, name what's there, slide an intensity,

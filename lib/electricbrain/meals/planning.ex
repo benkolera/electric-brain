@@ -15,6 +15,7 @@ defmodule Electricbrain.Meals.Planning do
   alias Electricbrain.Meals.MealWeek
   alias Electricbrain.Meals.PlannedMeal
   alias Electricbrain.Meals.Recipe
+  alias Electricbrain.Meals.ShoppingListItem
   alias Electricbrain.Meals.Targets
   alias Electricbrain.Meals.Weight
 
@@ -90,11 +91,71 @@ defmodule Electricbrain.Meals.Planning do
     |> Ash.read_one!(actor: user)
   end
 
-  @doc "Locks the week in. Phase 5 builds the shopping list here."
+  @doc "Locks the week in and builds (or rebuilds) its shopping list."
   def confirm_week(user, meal_week) do
-    meal_week
-    |> Ash.Changeset.for_update(:confirm, %{}, actor: user)
-    |> Ash.update!()
+    confirmed =
+      meal_week
+      |> Ash.Changeset.for_update(:confirm, %{}, actor: user)
+      |> Ash.update!()
+
+    rebuild_shopping_list(user, confirmed)
+    confirmed
+  end
+
+  @doc """
+  Aggregates the week's planned meals into shopping list rows: per
+  ingredient, Σ quantity_g × planned servings ÷ recipe batch servings.
+  Upserts by ingredient (preserving checked_at), deletes rows for
+  ingredients no longer in the plan.
+  """
+  def rebuild_shopping_list(user, meal_week) do
+    meal_week =
+      Ash.load!(meal_week, [planned_meals: [recipe: [:recipe_ingredients]]], actor: user)
+
+    totals =
+      meal_week.planned_meals
+      |> Enum.flat_map(fn meal ->
+        batch_servings = Decimal.to_float(meal.recipe.servings)
+        factor = Decimal.to_float(meal.servings) / max(batch_servings, 1.0e-9)
+
+        Enum.map(meal.recipe.recipe_ingredients, fn line ->
+          {line.ingredient_id, Decimal.to_float(line.quantity_g) * factor}
+        end)
+      end)
+      |> Enum.reduce(%{}, fn {ingredient_id, grams}, acc ->
+        Map.update(acc, ingredient_id, grams, &(&1 + grams))
+      end)
+
+    Enum.each(totals, fn {ingredient_id, grams} ->
+      ShoppingListItem
+      |> Ash.Changeset.for_create(
+        :upsert,
+        %{
+          meal_week_id: meal_week.id,
+          ingredient_id: ingredient_id,
+          total_quantity_g: grams |> Float.round(1) |> Decimal.from_float()
+        },
+        actor: user
+      )
+      |> Ash.create!()
+    end)
+
+    ShoppingListItem
+    |> Ash.Query.filter(meal_week_id == ^meal_week.id)
+    |> Ash.read!(actor: user)
+    |> Enum.reject(&Map.has_key?(totals, &1.ingredient_id))
+    |> Enum.each(&Ash.destroy!(&1, actor: user))
+
+    :ok
+  end
+
+  @doc "The week's shopping list, ingredient-loaded, sorted by name."
+  def shopping_list(user, meal_week) do
+    ShoppingListItem
+    |> Ash.Query.filter(meal_week_id == ^meal_week.id)
+    |> Ash.Query.load(:ingredient)
+    |> Ash.read!(actor: user)
+    |> Enum.sort_by(& &1.ingredient.name)
   end
 
   defp generator_recipes(user) do

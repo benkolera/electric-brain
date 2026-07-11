@@ -9,6 +9,7 @@ defmodule Electricbrain.Meals do
     resource Electricbrain.Meals.NutritionProfile
     resource Electricbrain.Meals.MealWeek
     resource Electricbrain.Meals.PlannedMeal
+    resource Electricbrain.Meals.ShoppingListItem
   end
 
   require Ash.Query

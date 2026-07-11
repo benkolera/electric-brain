@@ -230,6 +230,18 @@ so later profile tweaks don't shift a planned week.
 **Confirm** locks the week in. That's the Saturday moment: confirm,
 then shop.
 
+## Meals — shopping list
+
+Confirming a week builds its **shopping list** at
+`/meals/shopping`: every ingredient across the week's meals,
+aggregated into one line each (recipe quantities × planned servings ÷
+batch size). Check items off as they go in the trolley — the state
+persists, so closing the phone mid-shop loses nothing.
+
+If the plan changes after confirming, the list rebuilds with updated
+quantities while keeping what you've already checked; ingredients
+that dropped out of the plan disappear from the list.
+
 ## Planner — the weekly grid
 
 The `/plan` page is the central surface — a Schedule-X calendar

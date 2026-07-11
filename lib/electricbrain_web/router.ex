@@ -69,6 +69,7 @@ defmodule ElectricbrainWeb.Router do
       live "/recipes/:id/edit", RecipeLive.Form, :edit
 
       live "/meals", MealLive.Index, :index
+      live "/meals/shopping", MealLive.Shopping, :index
       live "/meals/settings", MealLive.Settings, :index
 
       live "/moments", MomentLive.Index, :index
