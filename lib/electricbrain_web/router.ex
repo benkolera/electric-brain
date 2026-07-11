@@ -29,6 +29,10 @@ defmodule ElectricbrainWeb.Router do
     plug ElectricbrainWeb.Plugs.G2TokenAuth
   end
 
+  pipeline :ingest_authenticated do
+    plug ElectricbrainWeb.Plugs.G2TokenAuth, kind: :ingest
+  end
+
   # ALB target group health check — outside :browser, no auth, no session.
   # Must remain excluded from force_ssl (config/prod.exs) so the ALB's
   # HTTP probe doesn't get a 301.
@@ -145,6 +149,14 @@ defmodule ElectricbrainWeb.Router do
     get "/state", G2Controller, :state
     post "/touch", G2Controller, :touch
     delete "/pairing", G2Controller, :unpair
+  end
+
+  # Measurement ingest webhook — relays (Health Auto Export for the
+  # Hume scale) POST body readings here with an :ingest device token.
+  scope "/api/ingest", ElectricbrainWeb do
+    pipe_through [:accepts_json, :ingest_authenticated]
+
+    post "/measurements", IngestController, :create
   end
 
   # Server-Sent Events stream — separate scope because the response

@@ -31,7 +31,7 @@ defmodule Electricbrain.Devices.Pairing do
     # the actor isn't established yet (the token is the credential being
     # minted). User-facing destroy is gated by the policy below.
     create :issue do
-      accept [:token_hash, :label, :user_id]
+      accept [:token_hash, :label, :user_id, :kind]
     end
 
     update :touch do
@@ -57,6 +57,15 @@ defmodule Electricbrain.Devices.Pairing do
     attribute :label, :string do
       allow_nil? false
       public? true
+    end
+
+    # What the token is allowed to do: `:g2` reads glasses state from
+    # /api/g2/*, `:ingest` writes measurements to /api/ingest/*.
+    attribute :kind, :atom do
+      allow_nil? false
+      default :g2
+      public? true
+      constraints one_of: [:g2, :ingest]
     end
 
     attribute :last_seen_at, :utc_datetime_usec do

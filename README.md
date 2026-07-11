@@ -114,6 +114,12 @@ Single Phoenix app — no umbrella. Deployed as half of the
   Metrics ("Oura active/total kcal") every morning, and upgrades the
   meal plan's TDEE from the activity-multiplier formula to the
   measured 14-day average once a week of data exists.
+- **Measurement ingest webhook** — `POST /api/ingest/measurements`
+  with a per-user bearer token (the Devices pairing model, `:ingest`
+  kind) writes weight / body-fat readings onto the profile-mapped
+  metrics. Accepts a generic JSON shape and the Health Auto Export
+  format, which is the relay path for the Hume Body Pod scale
+  (Hume → Apple Health → scheduled POST). Idempotent per reading.
 - **Web push notifications** — opt-in per browser. The Settings page
   has Enable / Send test / per-device disable. A cron-driven
   scheduler (`Notifications.Scheduler`) fires a push 5 min before
@@ -191,6 +197,9 @@ flowchart LR
     planner -.->|"sync"| gcal[Google<br/>Calendar API]
 
     oura[Oura API] -.->|"daily burn →<br/>Measurements"| metrics
+
+    hume[Hume scale via<br/>Health Auto Export] -.->|"POST /api/ingest<br/>bearer token"| devices
+    devices -.->|"weight / body fat →<br/>Measurements"| metrics
 
     g2plugin[Even Hub plugin<br/>G2 glasses HUD]
     g2plugin -.->|"poll /api/g2/state<br/>bearer token"| devices

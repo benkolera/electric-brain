@@ -24,6 +24,7 @@ defmodule Electricbrain.Meals.NutritionProfile do
 
     references do
       reference :weight_metric, on_delete: :nilify
+      reference :body_fat_metric, on_delete: :nilify
     end
   end
 
@@ -35,6 +36,7 @@ defmodule Electricbrain.Meals.NutritionProfile do
     :goal,
     :goal_rate_kcal_per_day,
     :weight_metric_id,
+    :body_fat_metric_id,
     :protein_g_per_kg,
     :fat_pct,
     :override_kcal,
@@ -87,6 +89,11 @@ defmodule Electricbrain.Meals.NutritionProfile do
     validate {Electricbrain.Validations.OwnedParent,
               parent: Electricbrain.Metrics.Metric, field: :weight_metric_id} do
       where changing(:weight_metric_id)
+    end
+
+    validate {Electricbrain.Validations.OwnedParent,
+              parent: Electricbrain.Metrics.Metric, field: :body_fat_metric_id} do
+      where changing(:body_fat_metric_id)
     end
 
     validate compare(:goal_rate_kcal_per_day, greater_than_or_equal_to: 0) do
@@ -245,6 +252,13 @@ defmodule Electricbrain.Meals.NutritionProfile do
     end
 
     belongs_to :weight_metric, Electricbrain.Metrics.Metric do
+      allow_nil? true
+      public? true
+    end
+
+    # Where the ingest webhook routes body-fat readings (weight goes to
+    # weight_metric). Optional — unmapped keys are reported, not stored.
+    belongs_to :body_fat_metric, Electricbrain.Metrics.Metric do
       allow_nil? true
       public? true
     end

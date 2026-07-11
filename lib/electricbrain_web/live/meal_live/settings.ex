@@ -26,6 +26,7 @@ defmodule ElectricbrainWeb.MealLive.Settings do
      socket
      |> assign(:page_title, "Meal settings")
      |> assign(:metrics, list_metrics(user))
+     |> assign(:ingest_token, nil)
      |> load_profile()}
   end
 
@@ -110,6 +111,13 @@ defmodule ElectricbrainWeb.MealLive.Settings do
     end
   end
 
+  def handle_event("create_ingest_token", _params, socket) do
+    user = socket.assigns.current_user
+    %{token: token} = Electricbrain.Devices.create_ingest_token!(user, "Measurement ingest")
+
+    {:noreply, assign(socket, :ingest_token, token)}
+  end
+
   def handle_event("disconnect_oura", _params, socket) do
     user = socket.assigns.current_user
 
@@ -154,7 +162,7 @@ defmodule ElectricbrainWeb.MealLive.Settings do
   # Blank override inputs mean "computed" — nil, not a cast error.
   defp normalise_blank_overrides(params) do
     Enum.reduce(
-      ~w(override_kcal override_protein_g override_fat_g override_carbs_g height_cm birthdate sex weight_metric_id),
+      ~w(override_kcal override_protein_g override_fat_g override_carbs_g height_cm birthdate sex weight_metric_id body_fat_metric_id),
       params,
       fn key, acc ->
         case acc[key] do
@@ -351,7 +359,7 @@ defmodule ElectricbrainWeb.MealLive.Settings do
                 />
               </div>
 
-              <div class="sm:col-span-3">
+              <div class="sm:col-span-2">
                 <label class="label"><span class="label-text text-xs">Weight metric</span></label>
                 <select
                   name={@form[:weight_metric_id].name}
@@ -372,6 +380,27 @@ defmodule ElectricbrainWeb.MealLive.Settings do
                   Your weight series in Metrics — the latest reading feeds BMR, and week-over-week
                   change shows whether the plan is working.
                 </p>
+              </div>
+
+              <div>
+                <label class="label">
+                  <span class="label-text text-xs">Body fat metric (for scale ingest)</span>
+                </label>
+                <select
+                  name={@form[:body_fat_metric_id].name}
+                  class="select select-bordered bg-base-100 w-full"
+                >
+                  <option value="" selected={@form[:body_fat_metric_id].value in [nil, ""]}>
+                    (none)
+                  </option>
+                  <option
+                    :for={metric <- @metrics}
+                    value={metric.id}
+                    selected={to_string(@form[:body_fat_metric_id].value) == metric.id}
+                  >
+                    {metric.name} ({metric.unit})
+                  </option>
+                </select>
               </div>
             </div>
           </div>
@@ -467,6 +496,34 @@ defmodule ElectricbrainWeb.MealLive.Settings do
           <button type="submit" class="btn btn-primary">Save meal settings</button>
         </div>
       </.form>
+
+      <div class="card bg-base-200 border border-base-300">
+        <div class="card-body">
+          <h2 class="card-title">Scale ingest (Hume via Apple Health)</h2>
+          <p class="text-sm text-neutral-content/70">
+            The Hume Body Pod has no public API but syncs to Apple Health. Install
+            <span class="font-medium">Health Auto Export</span>
+            on the phone, add a REST API automation pointing at
+            <code class="text-xs">/api/ingest/measurements</code>
+            with the token below as a Bearer header, and weight / body fat land on the
+            metrics mapped above.
+          </p>
+          <%= if @ingest_token do %>
+            <div class="bg-base-100 border border-base-300 rounded-box p-3">
+              <p class="text-xs text-neutral-content/60 mb-1">
+                Copy it now — it's shown exactly once:
+              </p>
+              <code class="text-sm break-all select-all">{@ingest_token}</code>
+            </div>
+          <% end %>
+          <div class="flex items-center gap-3 mt-2">
+            <div class="flex-1"></div>
+            <button type="button" phx-click="create_ingest_token" class="btn btn-sm btn-primary">
+              <.icon name="hero-key-micro" class="size-4" /> Generate ingest token
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div :if={Oura.configured?()} class="card bg-base-200 border border-base-300">
         <div class="card-body">

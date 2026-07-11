@@ -5,30 +5,32 @@ defmodule ElectricbrainWeb.Plugs.G2TokenAuth do
   the actor for the downstream Ash actions. Touches the pairing's
   `last_seen_at` as a side effect (cheap, idempotent).
 
-  Halts with 401 on missing / unknown tokens. Designed for the
-  `/api/g2/*` scope only; do not pipe browser routes through here.
+  Halts with 401 on missing / unknown tokens, or on a token of the
+  wrong kind — pass `kind: :ingest` for the measurement webhook scope;
+  the default `:g2` serves the glasses API. Do not pipe browser routes
+  through here.
   """
 
   import Plug.Conn
 
   alias Electricbrain.Devices
 
-  def init(opts), do: opts
+  def init(opts), do: Keyword.get(opts, :kind, :g2)
 
-  def call(conn, _opts) do
+  def call(conn, kind) do
     case bearer_token(conn) do
       nil ->
         deny(conn)
 
       token ->
         case Devices.lookup_token(token) do
-          {:ok, {pairing, user}} ->
+          {:ok, {%{kind: ^kind} = pairing, user}} ->
             conn
             |> assign(:current_user, user)
             |> assign(:current_pairing, pairing)
             |> Ash.PlugHelpers.set_actor(user)
 
-          :error ->
+          _ ->
             deny(conn)
         end
     end

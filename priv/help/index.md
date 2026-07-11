@@ -287,6 +287,30 @@ Oura retired personal access tokens, so this uses OAuth — the server
 needs `OURA_CLIENT_ID`/`OURA_CLIENT_SECRET` configured (register an
 app at cloud.ouraring.com); the card hides itself otherwise.
 
+## Meals — Hume scale (measurement ingest)
+
+The Hume Body Pod has no public API, but it syncs to Apple Health —
+and anything in Apple Health can be relayed to Trellis:
+
+1. On meal settings, map your **weight** and **body fat** metrics and
+   generate an **ingest token** (shown once — copy it immediately)
+2. Install the **Health Auto Export** iOS app
+3. Add a REST API automation: URL
+   `https://<your-trellis>/api/ingest/measurements`, method POST,
+   header `Authorization: Bearer <token>`, metrics *Weight/Body Mass*
+   and *Body Fat Percentage*, on a daily schedule
+
+Readings land as ordinary Measurements on the mapped metrics —
+feeding the BMR, the weekly delta, and the progress panel. Posts are
+idempotent (a re-sent reading is skipped), and the endpoint also
+accepts a plain JSON shape for any other relay:
+
+    {"measurements": [{"metric": "weight", "value": 82.5,
+                       "recorded_at": "2026-07-11T07:12:00Z"}]}
+
+Revoke a token any time by generating a new one and deleting the old
+pairing.
+
 ## Planner — the weekly grid
 
 The `/plan` page is the central surface — a Schedule-X calendar

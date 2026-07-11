@@ -88,6 +88,27 @@ defmodule Electricbrain.Devices do
   end
 
   @doc """
+  Issues an `:ingest` pairing directly (no code exchange — the token is
+  pasted into a relay app like Health Auto Export rather than redeemed
+  by an interactive client). Returns `%{pairing: pairing, token: cleartext}`;
+  the cleartext is shown exactly once.
+  """
+  def create_ingest_token!(user, label) do
+    {token, hash} = mint_token()
+
+    pairing =
+      Pairing
+      |> Ash.Changeset.for_create(
+        :issue,
+        %{token_hash: hash, label: label, user_id: user.id, kind: :ingest},
+        authorize?: false
+      )
+      |> Ash.create!()
+
+    %{pairing: pairing, token: token}
+  end
+
+  @doc """
   Looks up the Pairing for an opaque bearer token. Returns `{:ok,
   {pairing, user}}` or `:error`. Side effect: bumps `last_seen_at`.
   """
