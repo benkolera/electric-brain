@@ -155,6 +155,27 @@ entries; type to search everything.
 Ingredient data derived from the Australian Food Composition
 Database © Food Standards Australia New Zealand, CC-BY 4.0.
 
+## Meals — recipes
+
+A **recipe** on `/recipes` is a dish built from ingredient lines
+(grams of an ingredient) plus how many **servings** the batch makes.
+Per-serving macros are calculated from the lines — you never type
+recipe macros by hand, and they stay correct when you tweak
+quantities.
+
+Each recipe has a **slot**, which is where the weekly plan may place
+it:
+
+* **Breakfast** — the plan picks two per week
+* **Main** — lunch and dinner; the plan picks two and alternates them
+* **Snack** — one per week, eaten daily
+* **Shake** — protein top-ups the plan adds when a day's protein
+  falls short of target
+
+That 2 + 2 + 1 structure (from *The Bodybuilder's Meal Prep
+Cookbook*) is deliberate: enough variety to not get bored, few enough
+dishes that Sunday prep stays a two-pot job.
+
 ## Planner — the weekly grid
 
 The `/plan` page is the central surface — a Schedule-X calendar

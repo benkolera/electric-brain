@@ -162,6 +162,11 @@ defmodule ElectricbrainWeb.Layouts do
       </.link>
     </li>
     <li>
+      <.link navigate={~p"/recipes"} class="font-medium">
+        <.icon name="hero-book-open-micro" class="size-4" /> Recipes
+      </.link>
+    </li>
+    <li>
       <.link navigate={~p"/moments"} class="font-medium">
         <.icon name="hero-pause-circle-micro" class="size-4" /> Moments
       </.link>
