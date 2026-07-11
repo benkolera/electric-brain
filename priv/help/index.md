@@ -131,6 +131,30 @@ habit: attach the metric to the habit, complete it, and a modal asks
 for the value before the completion finalises. Skip if you want to
 backfill later.
 
+## Meals — ingredient library
+
+The `/ingredients` page is the foundation of meal planning: a library
+of foods with **per-100g macros** (kcal, protein, fat, carbs, fibre).
+Recipes are built from these ingredients, so their macros are
+calculated for you — the more the library grows, the less typing a
+new recipe takes.
+
+Two kinds of ingredient share the library:
+
+* **AFCD** — 1,588 whole foods seeded from the Australian Food
+  Composition Database (Release 3). These are read-only reference
+  data; search for "chicken breast", "rolled oats", "broccoli" and
+  they're already there.
+* **Custom** — your own entries, typed in from a packet label. Use
+  these for branded products (protein powder, Greek yogurt, wraps)
+  the AFCD doesn't carry. Only you can see, edit, or delete them.
+
+The library is search-first — a blank search shows just your custom
+entries; type to search everything.
+
+Ingredient data derived from the Australian Food Composition
+Database © Food Standards Australia New Zealand, CC-BY 4.0.
+
 ## Planner — the weekly grid
 
 The `/plan` page is the central surface — a Schedule-X calendar

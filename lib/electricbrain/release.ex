@@ -13,8 +13,19 @@ defmodule Electricbrain.Release do
     ensure_storage()
 
     for repo <- repos() do
-      {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true))
+      {:ok, _, _} =
+        Ecto.Migrator.with_repo(repo, fn repo ->
+          Ecto.Migrator.run(repo, :up, all: true)
+          seed()
+        end)
     end
+  end
+
+  # Idempotent data seeds (AFCD ingredient library upserts by afcd_code),
+  # folded into migrate/0 so the poncho startup script needs no changes.
+  def seed do
+    {:ok, _} = Application.ensure_all_started(:ash)
+    Electricbrain.Meals.Seeder.seed_afcd!()
   end
 
   def rollback(repo, version) do

@@ -77,6 +77,7 @@ defmodule Electricbrain.MixProject do
       {:bandit, "~> 1.5"},
       {:cors_plug, "~> 3.0"},
       {:mdex, "~> 0.5"},
+      {:nimble_csv, "~> 1.2"},
       {:web_push_elixir, "~> 0.8"},
       {:ex_aws, "~> 2.5"},
       {:ex_aws_s3, "~> 2.5"},

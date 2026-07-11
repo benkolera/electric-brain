@@ -9,3 +9,6 @@
 #
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.
+
+count = Electricbrain.Meals.Seeder.seed_afcd!()
+IO.puts("Seeded #{count} AFCD ingredients")

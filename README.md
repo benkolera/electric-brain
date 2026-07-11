@@ -66,6 +66,12 @@ Single Phoenix app — no umbrella. Deployed as half of the
   "yellow brick road" goal (`at_least` / `at_most` × a value per
   day/week/month); the chart overlays the road line and an on-track /
   off-track pill shows the current bucket's standing.
+- **Meals (ingredient library)** — the first slice of meal planning:
+  a searchable per-100g macro library seeded from the Australian Food
+  Composition Database (1,588 foods, CC-BY FSANZ) plus your own
+  custom entries typed in from packet labels. Recipes built from
+  these ingredients get their macros calculated for free as the
+  library grows.
 - **Moments** — radical-acceptance pauses (Tara Brach's RAIN: Recognize,
   Allow, Investigate, Nurture). When a craving, urge or feeling pulls,
   open the floating "Pause" button, name what's there, slide an intensity,
@@ -119,6 +125,7 @@ flowchart LR
         planner[Planner.Entry]
         notes[Notes]
         metrics[Metrics<br/>+ Measurement<br/>+ HabitMetric]
+        meals[Meals<br/>Ingredient library]
         moments[Moments<br/>RAIN journal]
         focus[Focus<br/>Session]
         notifications[Notifications<br/>PushSubscription]
@@ -133,6 +140,7 @@ flowchart LR
     liveview --> planner
     liveview --> notes
     liveview --> metrics
+    liveview --> meals
     liveview --> moments
     liveview --> focus
 
