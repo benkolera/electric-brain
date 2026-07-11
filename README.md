@@ -69,8 +69,9 @@ Single Phoenix app — no umbrella. Deployed as half of the
 - **Meals** — macro-driven weekly meal planning around a Saturday
   shop and Sunday prep. An ingredient library (per-100g macros,
   seeded from the Australian Food Composition Database's 1,588 foods
-  + custom packet-label entries) feeds recipes whose per-serving
-  macros are calculated for free. A nutrition profile computes daily
+  + custom packet-label entries, quick-addable inline from the recipe
+  form) feeds recipes whose per-serving macros are calculated for
+  free. A nutrition profile computes daily
   calorie/macro targets (Mifflin-St Jeor BMR → TDEE → cut/bulk rate,
   protein by g/kg) from the latest reading of your weight metric,
   with per-field manual overrides. The weekly plan auto-generates on

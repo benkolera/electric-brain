@@ -163,6 +163,12 @@ Per-serving macros are calculated from the lines — you never type
 recipe macros by hand, and they stay correct when you tweak
 quantities.
 
+If a search in the recipe form doesn't find what you need, hit
+**New ingredient** right there — a small inline form takes the name
+and per-100g macros from the packet label, and the new ingredient
+drops straight into the line. No need to detour via `/ingredients`
+mid-recipe.
+
 Each recipe has a **slot**, which is where the weekly plan may place
 it:
 

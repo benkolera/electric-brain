@@ -80,6 +80,91 @@ defmodule ElectricbrainWeb.RecipeLive.FormTest do
     assert Decimal.equal?(line.quantity_g, Decimal.new(600))
   end
 
+  test "quick-adds a custom ingredient and picks it into the row", %{conn: conn, user: user} do
+    {:ok, view, _html} = live(conn, ~p"/recipes/new")
+    [row_key] = row_keys(view)
+
+    view
+    |> element("#recipe-form")
+    |> render_change(%{
+      "_target" => ["rows", row_key, "search"],
+      "form" => %{"name" => "", "servings" => "1"},
+      "rows" => %{row_key => %{"search" => "Chobani yogurt", "quantity_g" => ""}}
+    })
+
+    assert render(view) =~ "New ingredient &quot;Chobani yogurt&quot;"
+
+    view
+    |> element("button[phx-click=open_quick_add]")
+    |> render_click()
+
+    view
+    |> element("#recipe-form")
+    |> render_change(%{
+      "_target" => ["rows", row_key, "new", "kcal_per_100g"],
+      "form" => %{"name" => "", "servings" => "1"},
+      "rows" => %{
+        row_key => %{
+          "quantity_g" => "",
+          "new" => %{
+            "name" => "Chobani yogurt",
+            "kcal_per_100g" => "60",
+            "protein_g_per_100g" => "10",
+            "fat_g_per_100g" => "0.2",
+            "carbs_g_per_100g" => "3.5",
+            "fibre_g_per_100g" => ""
+          }
+        }
+      }
+    })
+
+    view
+    |> element("button[phx-click=create_ingredient]")
+    |> render_click()
+
+    # The new ingredient is picked into the row (panel gone, name shown).
+    html = render(view)
+    assert html =~ "Chobani yogurt"
+    refute html =~ "Create &amp; use"
+
+    ingredient =
+      Ingredient
+      |> Ash.Query.filter(name == "Chobani yogurt")
+      |> Ash.read_one!(actor: user)
+
+    assert ingredient.user_id == user.id
+    assert ingredient.source == :custom
+    assert Decimal.equal?(ingredient.kcal_per_100g, Decimal.new("60"))
+    assert Decimal.equal?(ingredient.fibre_g_per_100g, Decimal.new("0"))
+  end
+
+  test "quick-add shows errors when macros are missing", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/recipes/new")
+    [row_key] = row_keys(view)
+
+    view
+    |> element("#recipe-form")
+    |> render_change(%{
+      "_target" => ["rows", row_key, "search"],
+      "form" => %{"name" => "", "servings" => "1"},
+      "rows" => %{row_key => %{"search" => "Mystery paste", "quantity_g" => ""}}
+    })
+
+    view
+    |> element("button[phx-click=open_quick_add]")
+    |> render_click()
+
+    view
+    |> element("button[phx-click=create_ingredient]")
+    |> render_click()
+
+    html = render(view)
+    assert html =~ "is required"
+    # Panel stays open with the prefilled name for another go.
+    assert html =~ "Create &amp; use"
+    assert html =~ "Mystery paste"
+  end
+
   test "editing shows existing ingredient lines", %{conn: conn, user: user, chicken: chicken} do
     recipe =
       Recipe

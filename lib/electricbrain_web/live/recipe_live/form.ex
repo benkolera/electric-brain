@@ -5,6 +5,10 @@ defmodule ElectricbrainWeb.RecipeLive.Form do
   and handed to the Recipe action as the `recipe_ingredients` argument
   on save — `manage_relationship(:direct_control)` diffs them against
   the existing rows by the `[recipe_id, ingredient_id]` identity.
+
+  A row whose search comes up empty can quick-add a custom ingredient
+  inline (`new_ingredient` holds the pending params while the panel is
+  open); creating it picks it straight into the row.
   """
 
   use ElectricbrainWeb, :live_view
@@ -77,7 +81,9 @@ defmodule ElectricbrainWeb.RecipeLive.Form do
       ingredient: nil,
       quantity_g: "",
       search: "",
-      results: []
+      results: [],
+      new_ingredient: nil,
+      create_errors: []
     }
   end
 
@@ -137,6 +143,77 @@ defmodule ElectricbrainWeb.RecipeLive.Form do
     {:noreply, assign(socket, :rows, rows)}
   end
 
+  def handle_event("open_quick_add", %{"key" => key}, socket) do
+    rows =
+      Enum.map(socket.assigns.rows, fn
+        %{key: ^key} = row ->
+          %{
+            row
+            | new_ingredient: %{"name" => String.trim(row.search)},
+              results: [],
+              create_errors: []
+          }
+
+        row ->
+          row
+      end)
+
+    {:noreply, assign(socket, :rows, rows)}
+  end
+
+  def handle_event("cancel_quick_add", %{"key" => key}, socket) do
+    rows =
+      socket.assigns.rows
+      |> Enum.map(fn
+        %{key: ^key} = row -> %{row | new_ingredient: nil, create_errors: []}
+        row -> row
+      end)
+      |> search_row(key, socket.assigns.current_user)
+
+    {:noreply, assign(socket, :rows, rows)}
+  end
+
+  def handle_event("create_ingredient", %{"key" => key}, socket) do
+    user = socket.assigns.current_user
+    row = Enum.find(socket.assigns.rows, &(&1.key == key))
+
+    # Blank fields are dropped so required-attribute errors read
+    # "is required" and fibre falls back to its default of 0.
+    params = Map.reject(row.new_ingredient, fn {_field, value} -> String.trim(value) == "" end)
+
+    result =
+      Ingredient
+      |> AshPhoenix.Form.for_create(:create, actor: user)
+      |> AshPhoenix.Form.submit(params: params)
+
+    rows =
+      case result do
+        {:ok, ingredient} ->
+          Enum.map(socket.assigns.rows, fn
+            %{key: ^key} = row ->
+              %{
+                row
+                | ingredient: ingredient,
+                  search: "",
+                  results: [],
+                  new_ingredient: nil,
+                  create_errors: []
+              }
+
+            row ->
+              row
+          end)
+
+        {:error, form} ->
+          Enum.map(socket.assigns.rows, fn
+            %{key: ^key} = row -> %{row | create_errors: AshPhoenix.Form.errors(form)}
+            row -> row
+          end)
+      end
+
+    {:noreply, assign(socket, :rows, rows)}
+  end
+
   def handle_event("save", %{"form" => form_params}, socket) do
     ingredient_params =
       socket.assigns.rows
@@ -161,11 +238,19 @@ defmodule ElectricbrainWeb.RecipeLive.Form do
           row
 
         fields ->
-          %{
+          row = %{
             row
             | quantity_g: Map.get(fields, "quantity_g", row.quantity_g),
               search: Map.get(fields, "search", row.search)
           }
+
+          case {row.new_ingredient, fields["new"]} do
+            {%{} = new, %{} = new_params} ->
+              %{row | new_ingredient: Map.merge(new, new_params)}
+
+            _ ->
+              row
+          end
       end
     end)
   end
@@ -320,36 +405,51 @@ defmodule ElectricbrainWeb.RecipeLive.Form do
                       </button>
                     </div>
                   <% else %>
-                    <input
-                      type="text"
-                      name={"rows[#{row.key}][search]"}
-                      value={row.search}
-                      phx-debounce="300"
-                      placeholder="Search ingredients…"
-                      class="input input-bordered input-sm w-full bg-base-100"
-                      autocomplete="off"
-                    />
-                    <%= if row.results != [] do %>
-                      <ul class="menu bg-base-100 border border-base-300 rounded-box mt-1 p-1 shadow">
-                        <%= for result <- row.results do %>
-                          <li>
-                            <button
-                              type="button"
-                              phx-click="pick_ingredient"
-                              phx-value-key={row.key}
-                              phx-value-id={result.id}
-                              class="text-left text-sm"
-                            >
-                              {result.name}
-                              <span class="text-xs opacity-60">
-                                {result.kcal_per_100g
-                                |> Decimal.round(0)
-                                |> Decimal.to_string(:normal)} kcal/100g
-                              </span>
-                            </button>
-                          </li>
-                        <% end %>
-                      </ul>
+                    <%= if row.new_ingredient do %>
+                      <.quick_add_panel row={row} />
+                    <% else %>
+                      <input
+                        type="text"
+                        name={"rows[#{row.key}][search]"}
+                        value={row.search}
+                        phx-debounce="300"
+                        placeholder="Search ingredients…"
+                        class="input input-bordered input-sm w-full bg-base-100"
+                        autocomplete="off"
+                      />
+                      <%= if row.results != [] do %>
+                        <ul class="menu bg-base-100 border border-base-300 rounded-box mt-1 p-1 shadow">
+                          <%= for result <- row.results do %>
+                            <li>
+                              <button
+                                type="button"
+                                phx-click="pick_ingredient"
+                                phx-value-key={row.key}
+                                phx-value-id={result.id}
+                                class="text-left text-sm"
+                              >
+                                {result.name}
+                                <span class="text-xs opacity-60">
+                                  {result.kcal_per_100g
+                                  |> Decimal.round(0)
+                                  |> Decimal.to_string(:normal)} kcal/100g
+                                </span>
+                              </button>
+                            </li>
+                          <% end %>
+                        </ul>
+                      <% end %>
+                      <%= if String.trim(row.search) != "" do %>
+                        <button
+                          type="button"
+                          phx-click="open_quick_add"
+                          phx-value-key={row.key}
+                          class="btn btn-ghost btn-xs mt-1"
+                        >
+                          <.icon name="hero-plus-micro" class="size-4" />
+                          New ingredient "{String.trim(row.search)}"
+                        </button>
+                      <% end %>
                     <% end %>
                   <% end %>
                 </div>
@@ -394,6 +494,80 @@ defmodule ElectricbrainWeb.RecipeLive.Form do
         </div>
       </.form>
     </Layouts.app>
+    """
+  end
+
+  @quick_add_macros [
+    {"kcal_per_100g", "kcal / 100g"},
+    {"protein_g_per_100g", "Protein g"},
+    {"fat_g_per_100g", "Fat g"},
+    {"carbs_g_per_100g", "Carbs g"},
+    {"fibre_g_per_100g", "Fibre g"}
+  ]
+
+  defp quick_add_macros, do: @quick_add_macros
+
+  attr :row, :map, required: true
+
+  defp quick_add_panel(assigns) do
+    ~H"""
+    <div class="bg-base-100 border border-base-300 rounded-box p-3 mt-1 space-y-2">
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <span class="font-medium text-sm">New ingredient</span>
+        <span class="text-xs opacity-60">macros per 100g, from the packet label</span>
+      </div>
+
+      <input
+        type="text"
+        name={"rows[#{@row.key}][new][name]"}
+        value={@row.new_ingredient["name"]}
+        phx-debounce="blur"
+        placeholder="Chobani plain Greek yogurt"
+        class="input input-bordered input-sm w-full bg-base-100"
+        autocomplete="off"
+      />
+
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <%= for {field, label} <- quick_add_macros() do %>
+          <div>
+            <label class="label py-0"><span class="label-text text-xs">{label}</span></label>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              name={"rows[#{@row.key}][new][#{field}]"}
+              value={@row.new_ingredient[field]}
+              phx-debounce="blur"
+              class="input input-bordered input-sm w-full bg-base-100"
+              autocomplete="off"
+            />
+          </div>
+        <% end %>
+      </div>
+
+      <%= for {field, message} <- @row.create_errors do %>
+        <p class="text-xs text-error">{Phoenix.Naming.humanize(field)} {message}</p>
+      <% end %>
+
+      <div class="flex justify-end gap-2">
+        <button
+          type="button"
+          phx-click="cancel_quick_add"
+          phx-value-key={@row.key}
+          class="btn btn-ghost btn-xs"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          phx-click="create_ingredient"
+          phx-value-key={@row.key}
+          class="btn btn-primary btn-xs"
+        >
+          Create &amp; use
+        </button>
+      </div>
+    </div>
     """
   end
 end
