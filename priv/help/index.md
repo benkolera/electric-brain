@@ -176,6 +176,32 @@ That 2 + 2 + 1 structure (from *The Bodybuilder's Meal Prep
 Cookbook*) is deliberate: enough variety to not get bored, few enough
 dishes that Sunday prep stays a two-pot job.
 
+## Meals — targets
+
+`/meals/settings` holds your **nutrition profile** — the inputs the
+weekly plan's calorie and macro targets are computed from:
+
+1. **BMR** via Mifflin-St Jeor (height, birthdate, sex, and your
+   latest weight)
+2. **TDEE** = BMR × an activity multiplier (sedentary → very active)
+3. **Goal target** = TDEE ± your cut/bulk rate (kcal per day)
+4. **Macro split**: protein by bodyweight (g/kg, default 2.0), fat as
+   a percentage of calories (default 25%), carbs get the remainder
+
+Weight isn't typed in here — link your **weight metric** (the same
+series the Metrics page charts) and the latest reading feeds the
+math. The panel also shows last week's weight change, which is the
+feedback loop: cutting but the scale isn't moving → drop the target;
+losing too fast → raise it.
+
+Every target field has a **manual override** — leave blank for
+computed, fill in to pin that number. If you don't want the BMR model
+at all, set all four overrides and skip the body inputs entirely.
+
+Meal times (breakfast, shake, lunch, snack, dinner) and the Saturday
+shopping / Sunday prep reminder times also live here — the meal
+scheduler fires reminders at these times in your local timezone.
+
 ## Planner — the weekly grid
 
 The `/plan` page is the central surface — a Schedule-X calendar

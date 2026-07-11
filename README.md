@@ -72,7 +72,10 @@ Single Phoenix app — no umbrella. Deployed as half of the
   plus custom entries typed in from packet labels. Recipes are built
   from ingredient lines (grams) with per-serving macros calculated
   for free, and are tagged breakfast / main / snack / shake for the
-  weekly plan generator.
+  weekly plan generator. A nutrition profile computes daily
+  calorie/macro targets (Mifflin-St Jeor BMR → TDEE → cut/bulk rate,
+  protein by g/kg) from the latest reading of your weight metric,
+  with per-field manual overrides.
 - **Moments** — radical-acceptance pauses (Tara Brach's RAIN: Recognize,
   Allow, Investigate, Nurture). When a craving, urge or feeling pulls,
   open the floating "Pause" button, name what's there, slide an intensity,
@@ -126,7 +129,7 @@ flowchart LR
         planner[Planner.Entry]
         notes[Notes]
         metrics[Metrics<br/>+ Measurement<br/>+ HabitMetric]
-        meals[Meals<br/>Ingredient + Recipe]
+        meals[Meals<br/>Ingredient + Recipe<br/>+ NutritionProfile]
         moments[Moments<br/>RAIN journal]
         focus[Focus<br/>Session]
         notifications[Notifications<br/>PushSubscription]
@@ -162,6 +165,8 @@ flowchart LR
     focus -.-> categories
 
     metrics -->|"HabitMetric join +<br/>Measurement.completion_id"| habits
+
+    meals -->|"weight_metric_id<br/>feeds BMR/TDEE"| metrics
 
     notifications -.->|"5-min lead<br/>cron tick"| planner
     notifications -.->|"end-of-work +<br/>end-of-break"| focus

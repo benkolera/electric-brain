@@ -278,6 +278,21 @@ defmodule ElectricbrainWeb.SettingsLive do
 
       <div class="card bg-base-200 border border-base-300">
         <div class="card-body">
+          <h2 class="card-title">Meal planning</h2>
+          <p class="text-sm text-neutral-content/70">
+            Body inputs, goal, macro split, and meal times live on their own page.
+          </p>
+          <div class="flex items-center gap-3 mt-2">
+            <div class="flex-1"></div>
+            <.link navigate={~p"/meals/settings"} class="btn btn-sm btn-primary">
+              <.icon name="hero-cake-micro" class="size-4" /> Meal settings
+            </.link>
+          </div>
+        </div>
+      </div>
+
+      <div class="card bg-base-200 border border-base-300">
+        <div class="card-body">
           <h2 class="card-title">Google Calendar</h2>
           <p class="text-sm text-neutral-content/70">
             Push planned items to your Google Calendar's primary calendar. One-way — we never read events back.
