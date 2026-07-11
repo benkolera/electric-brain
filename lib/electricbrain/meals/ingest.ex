@@ -70,7 +70,25 @@ defmodule Electricbrain.Meals.Ingest do
           end
         )
 
-      {:ok, %{result | unmapped: Enum.sort(result.unmapped)}}
+      result = %{result | unmapped: Enum.sort(result.unmapped)}
+
+      # HAE only surfaces the HTTP status, so a "successful" sync that
+      # stored nothing is invisible client-side — say why server-side.
+      if result.unmapped != [] do
+        Logger.warning(
+          "Ingest: #{length(result.unmapped)} unmapped keys not stored " <>
+            "(#{inspect(result.unmapped)}) — map them on /meals/settings"
+        )
+      end
+
+      if result.created == 0 do
+        Logger.info(
+          "Ingest: nothing stored (duplicates: #{result.duplicates}, " <>
+            "skipped: #{result.skipped}, unmapped: #{length(result.unmapped)})"
+        )
+      end
+
+      {:ok, result}
     end
   end
 
