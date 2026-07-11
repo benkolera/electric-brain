@@ -18,9 +18,17 @@ defmodule Electricbrain.Meals.Weight do
   def latest(_user, %{weight_metric_id: nil}), do: :none
 
   def latest(user, profile) do
-    case read_latest(user, profile.weight_metric_id, nil, nil) do
+    case metric_latest(user, profile.weight_metric_id) do
+      :none -> :none
+      {:ok, %{value: value, recorded_at: at}} -> {:ok, %{kg: value, recorded_at: at}}
+    end
+  end
+
+  @doc "Latest measurement of any metric: `{:ok, %{value, recorded_at}}` or `:none`."
+  def metric_latest(user, metric_id) do
+    case read_latest(user, metric_id, nil, nil) do
       nil -> :none
-      m -> {:ok, %{kg: m.value, recorded_at: m.recorded_at}}
+      m -> {:ok, %{value: m.value, recorded_at: m.recorded_at}}
     end
   end
 
@@ -33,11 +41,16 @@ defmodule Electricbrain.Meals.Weight do
   def week_delta(_user, %{weight_metric_id: nil}, _now), do: :none
 
   def week_delta(user, profile, now) do
+    metric_week_delta(user, profile.weight_metric_id, now)
+  end
+
+  @doc "Week-over-week delta for any metric: `{:ok, Decimal}` or `:none`."
+  def metric_week_delta(user, metric_id, now \\ DateTime.utc_now()) do
     week_start = Timezones.period_start(:week, user.timezone, now)
     prev_start = Timezones.period_start(:week, user.timezone, DateTime.add(week_start, -1))
 
-    this_week = read_latest(user, profile.weight_metric_id, week_start, nil)
-    last_week = read_latest(user, profile.weight_metric_id, prev_start, week_start)
+    this_week = read_latest(user, metric_id, week_start, nil)
+    last_week = read_latest(user, metric_id, prev_start, week_start)
 
     case {this_week, last_week} do
       {%{value: a}, %{value: b}} -> {:ok, Decimal.sub(a, b)}

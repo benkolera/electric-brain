@@ -257,6 +257,19 @@ scheduler sends:
 All times are yours to set on the meal settings page, and fire in
 your local timezone.
 
+## Meals — is it working?
+
+The point of the plan is the trend, not the week. On meal settings,
+pick your **progress metrics** — weight, waist, body fat %, key
+lifts, any Metrics series — and the meal plan page shows each one's
+latest value and week-over-week change beside the plan.
+
+Direction colouring follows the metric's goal: an `at_most` goal
+(waist, body fat) colours a falling week green; an `at_least` goal
+(lifts, weight on a bulk) colours a rising week green. Record the
+measurements however you already do — manually on the Metrics page,
+at habit completion, or via a connected device.
+
 ## Planner — the weekly grid
 
 The `/plan` page is the central surface — a Schedule-X calendar

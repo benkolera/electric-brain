@@ -31,9 +31,17 @@ defmodule ElectricbrainWeb.MealLive.Settings do
     user = socket.assigns.current_user
     profile = Meals.profile_for(user)
 
+    linked_ids =
+      if profile do
+        Meals.feedback_metrics(user, profile) |> Enum.map(& &1.metric_id) |> MapSet.new()
+      else
+        MapSet.new()
+      end
+
     socket
     |> assign(:profile, profile)
     |> assign(:form, profile_form(user, profile))
+    |> assign(:linked_metric_ids, linked_ids)
     |> assign_panel(profile)
   end
 
@@ -112,6 +120,18 @@ defmodule ElectricbrainWeb.MealLive.Settings do
       {:error, form} ->
         {:noreply, assign(socket, :form, form)}
     end
+  end
+
+  def handle_event("save_progress_metrics", params, socket) do
+    user = socket.assigns.current_user
+    metric_ids = Map.get(params, "metric_ids", [])
+
+    :ok = Meals.set_feedback_metrics(user, socket.assigns.profile, metric_ids)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Progress metrics saved")
+     |> load_profile()}
   end
 
   # Blank override inputs mean "computed" — nil, not a cast error.
@@ -419,6 +439,43 @@ defmodule ElectricbrainWeb.MealLive.Settings do
           <button type="submit" class="btn btn-primary">Save meal settings</button>
         </div>
       </.form>
+
+      <form
+        :if={@profile}
+        phx-submit="save_progress_metrics"
+        class="card bg-base-200 border border-base-300"
+      >
+        <div class="card-body space-y-3">
+          <h2 class="card-title">Progress metrics</h2>
+          <p class="text-sm text-neutral-content/70">
+            Pick the metrics that tell you whether the plan is working — weight, waist,
+            body fat %, key lifts. Their weekly trend shows on the meal plan page.
+          </p>
+          <%= if @metrics == [] do %>
+            <p class="text-sm text-neutral-content/50">
+              No metrics yet — create them on the
+              <.link navigate={~p"/metrics"} class="underline">Metrics</.link>
+              page first.
+            </p>
+          <% else %>
+            <div class="grid sm:grid-cols-2 gap-1">
+              <label :for={metric <- @metrics} class="flex items-center gap-2 py-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="metric_ids[]"
+                  value={metric.id}
+                  checked={MapSet.member?(@linked_metric_ids, metric.id)}
+                  class="checkbox checkbox-sm checkbox-primary"
+                />
+                <span class="text-sm">{metric.name} ({metric.unit})</span>
+              </label>
+            </div>
+            <div class="flex justify-end">
+              <button type="submit" class="btn btn-primary btn-sm">Save progress metrics</button>
+            </div>
+          <% end %>
+        </div>
+      </form>
     </Layouts.app>
     """
   end

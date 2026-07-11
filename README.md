@@ -83,7 +83,10 @@ Single Phoenix app — no umbrella. Deployed as half of the
   meal-time reminders ("Lunch — Chicken rice · 1.5 servings"),
   a Saturday shopping-day reminder (or a nudge to generate the plan),
   and a Sunday prep reminder listing the week's dishes — all at
-  user-local times from the nutrition profile.
+  user-local times from the nutrition profile. A progress panel on
+  the plan page tracks user-chosen feedback metrics (weight, waist,
+  body fat, lifts) with week-over-week deltas, closing the loop on
+  whether the plan is working.
 - **Moments** — radical-acceptance pauses (Tara Brach's RAIN: Recognize,
   Allow, Investigate, Nurture). When a craving, urge or feeling pulls,
   open the floating "Pause" button, name what's there, slide an intensity,

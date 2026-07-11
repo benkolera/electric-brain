@@ -15,6 +15,7 @@ defmodule ElectricbrainWeb.MealLive.Index do
   alias Electricbrain.Meals.PlannedMeal
   alias Electricbrain.Meals.Planning
   alias Electricbrain.Meals.Recipe
+  alias Electricbrain.Meals.Weight
 
   @slots [:breakfast, :shake, :lunch, :snack, :dinner]
   @slot_types %{breakfast: :breakfast, shake: :shake, lunch: :main, snack: :snack, dinner: :main}
@@ -45,11 +46,30 @@ defmodule ElectricbrainWeb.MealLive.Index do
     user = socket.assigns.current_user
     week_start = socket.assigns.week_start
 
+    profile = Meals.profile_for(user)
+
     socket
-    |> assign(:profile, Meals.profile_for(user))
+    |> assign(:profile, profile)
     |> assign(:targets, Planning.resolved_targets(user))
     |> assign(:meal_week, Planning.week_for(user, week_start))
     |> assign(:recipes, list_recipes(user))
+    |> assign(:progress, progress(user, profile))
+  end
+
+  # Feedback metrics for the "is it working?" panel: latest value +
+  # week-over-week delta per linked metric.
+  defp progress(_user, nil), do: []
+
+  defp progress(user, profile) do
+    user
+    |> Meals.feedback_metrics(profile)
+    |> Enum.map(fn link ->
+      %{
+        metric: link.metric,
+        latest: Weight.metric_latest(user, link.metric_id),
+        delta: Weight.metric_week_delta(user, link.metric_id)
+      }
+    end)
   end
 
   defp list_recipes(user) do
@@ -172,6 +192,24 @@ defmodule ElectricbrainWeb.MealLive.Index do
   defp servings_str(decimal),
     do: decimal |> Decimal.normalize() |> Decimal.to_string(:normal)
 
+  defp delta_str(delta) do
+    str = delta |> Decimal.round(2) |> Decimal.normalize() |> Decimal.to_string(:normal)
+    if Decimal.compare(delta, 0) == :gt, do: "+" <> str, else: str
+  end
+
+  # Whether a move is good depends on the metric's goal direction —
+  # a cut wants weight falling, a bulk (or a lift) wants it rising.
+  # Without a goal, stay neutral.
+  defp delta_class(delta, metric) do
+    rising = Decimal.compare(delta, 0) == :gt
+
+    case metric.goal_kind do
+      :at_least -> if rising, do: "text-success", else: "text-warning"
+      :at_most -> if rising, do: "text-warning", else: "text-success"
+      _ -> "text-neutral-content/70"
+    end
+  end
+
   defp slots, do: @slots
 
   @impl true
@@ -206,6 +244,35 @@ defmodule ElectricbrainWeb.MealLive.Index do
           <.link navigate={~p"/meals/settings"} class="btn btn-ghost btn-sm" title="Meal settings">
             <.icon name="hero-cog-6-tooth-micro" class="size-4" />
           </.link>
+        </div>
+      </div>
+
+      <div :if={@progress != []} class="flex gap-3 flex-wrap">
+        <div
+          :for={item <- @progress}
+          class="card bg-base-200 border border-base-300 flex-1 min-w-40"
+        >
+          <div class="card-body p-3">
+            <p class="text-xs text-neutral-content/60">{item.metric.name}</p>
+            <p class="text-lg font-semibold tabular-nums">
+              <%= case item.latest do %>
+                <% {:ok, %{value: value}} -> %>
+                  {value |> Decimal.round(1) |> Decimal.normalize() |> Decimal.to_string(:normal)}
+                  <span class="text-xs font-normal text-neutral-content/60">
+                    {item.metric.unit}
+                  </span>
+                <% :none -> %>
+                  <span class="text-sm font-normal text-neutral-content/40">no data</span>
+              <% end %>
+            </p>
+            <p :if={match?({:ok, _}, item.delta)} class="text-xs tabular-nums">
+              <% {:ok, delta} = item.delta %>
+              <span class={delta_class(delta, item.metric)}>
+                {delta_str(delta)} {item.metric.unit}
+              </span>
+              <span class="text-neutral-content/50">this week</span>
+            </p>
+          </div>
         </div>
       </div>
 
