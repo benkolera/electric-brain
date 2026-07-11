@@ -110,6 +110,10 @@ Single Phoenix app — no umbrella. Deployed as half of the
   code generated in Settings, then redeemed by the plugin for a
   long-lived bearer token (stored as a SHA-256 hash). State is served by
   a small JSON API at `/api/g2/*`; the plugin polls every 10–30 s.
+- **Oura ring** — per-user OAuth pulls daily calorie burn into
+  Metrics ("Oura active/total kcal") every morning, and upgrades the
+  meal plan's TDEE from the activity-multiplier formula to the
+  measured 14-day average once a week of data exists.
 - **Web push notifications** — opt-in per browser. The Settings page
   has Enable / Send test / per-device disable. A cron-driven
   scheduler (`Notifications.Scheduler`) fires a push 5 min before
@@ -185,6 +189,8 @@ flowchart LR
     notifications -.->|"web push"| pushsvc[Browser<br/>Push Service]
 
     planner -.->|"sync"| gcal[Google<br/>Calendar API]
+
+    oura[Oura API] -.->|"daily burn →<br/>Measurements"| metrics
 
     g2plugin[Even Hub plugin<br/>G2 glasses HUD]
     g2plugin -.->|"poll /api/g2/state<br/>bearer token"| devices

@@ -60,7 +60,30 @@ defmodule Electricbrain.Meals.Scheduler do
   def run_once(now \\ DateTime.utc_now()) do
     profiles = load_profiles()
 
+    oura_syncs(now, profiles)
+
     meal_reminders(now, profiles) + weekend_reminders(now, profiles)
+  end
+
+  # Daily Oura pull at ~06:00 local per connected user. Idempotent
+  # (measurements upsert per day), so a double-fire inside the lead
+  # window is harmless.
+  @oura_sync_time ~T[06:00:00]
+
+  defp oura_syncs(now, profiles) do
+    profiles
+    |> Map.values()
+    |> Enum.filter(&Electricbrain.Oura.connected?(&1.user))
+    |> Enum.each(fn profile ->
+      local_date = now |> DateTime.shift_zone!(profile.user.timezone) |> DateTime.to_date()
+
+      if due?(local_date, @oura_sync_time, profile.user.timezone, now) do
+        case Electricbrain.Oura.Sync.sync_user(profile.user) do
+          {:ok, _count} -> :ok
+          {:error, reason} -> Logger.warning("Oura daily sync failed: #{inspect(reason)}")
+        end
+      end
+    end)
   end
 
   # --- meal-time reminders ---------------------------------------------

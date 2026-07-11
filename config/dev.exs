@@ -80,6 +80,14 @@ if google_client_id = System.get_env("GOOGLE_CLIENT_ID") do
     google_client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
 end
 
+# Oura — same shape as Google above; the meal settings card hides
+# itself when unset.
+if oura_client_id = System.get_env("OURA_CLIENT_ID") do
+  config :electricbrain,
+    oura_client_id: oura_client_id,
+    oura_client_secret: System.get_env("OURA_CLIENT_SECRET")
+end
+
 # Web push (VAPID) — local dev keypair. Regenerate with
 # `mix generate.vapid.keys` for prod and set VAPID_PUBLIC_KEY +
 # VAPID_PRIVATE_KEY env vars. The dev pair here only works against this

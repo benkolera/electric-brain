@@ -12,9 +12,11 @@ defmodule ElectricbrainWeb.MealLive.Settings do
 
   alias Electricbrain.Meals
   alias Electricbrain.Meals.NutritionProfile
+  alias Electricbrain.Meals.Planning
   alias Electricbrain.Meals.Targets
   alias Electricbrain.Meals.Weight
   alias Electricbrain.Metrics.Metric
+  alias Electricbrain.Oura
 
   @impl true
   def mount(_params, _session, socket) do
@@ -73,21 +75,7 @@ defmodule ElectricbrainWeb.MealLive.Settings do
 
   defp assign_panel(socket, profile) do
     user = socket.assigns.current_user
-    weight = Weight.latest(user, profile)
-    week_delta = Weight.week_delta(user, profile)
-    today = user.timezone |> DateTime.now!() |> DateTime.to_date()
-
-    computed =
-      case weight do
-        {:ok, %{kg: kg}} ->
-          case Targets.compute(profile, Decimal.to_float(kg), today) do
-            {:ok, computed} -> computed
-            {:error, :incomplete_profile} -> nil
-          end
-
-        :none ->
-          nil
-      end
+    computed = Planning.computed_targets(user, profile)
 
     resolved =
       case Targets.resolve(profile, computed) do
@@ -96,8 +84,8 @@ defmodule ElectricbrainWeb.MealLive.Settings do
       end
 
     socket
-    |> assign(:weight, weight)
-    |> assign(:week_delta, week_delta)
+    |> assign(:weight, Weight.latest(user, profile))
+    |> assign(:week_delta, Weight.week_delta(user, profile))
     |> assign(:computed, computed)
     |> assign(:resolved, resolved)
   end
@@ -119,6 +107,35 @@ defmodule ElectricbrainWeb.MealLive.Settings do
 
       {:error, form} ->
         {:noreply, assign(socket, :form, form)}
+    end
+  end
+
+  def handle_event("disconnect_oura", _params, socket) do
+    user = socket.assigns.current_user
+
+    user =
+      user
+      |> Ash.Changeset.for_update(:disconnect_oura, %{}, actor: user)
+      |> Ash.update!()
+
+    {:noreply,
+     socket
+     |> assign(:current_user, user)
+     |> put_flash(:info, "Oura disconnected")}
+  end
+
+  def handle_event("sync_oura", _params, socket) do
+    user = socket.assigns.current_user
+
+    case Electricbrain.Oura.Sync.sync_user(user) do
+      {:ok, count} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Synced #{count} Oura readings")
+         |> load_profile()}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Oura sync failed — try reconnecting")}
     end
   end
 
@@ -193,9 +210,20 @@ defmodule ElectricbrainWeb.MealLive.Settings do
                 or set a manual calorie override.
               </p>
               <p :if={@computed}>
-                BMR <span class="font-medium">{@computed.bmr}</span> kcal ·
-                TDEE <span class="font-medium">{@computed.tdee}</span> kcal ·
-                goal target <span class="font-medium">{@computed.kcal}</span> kcal
+                <span :if={@computed.bmr}>
+                  BMR <span class="font-medium">{@computed.bmr}</span> kcal ·
+                </span>
+                TDEE <span class="font-medium">{@computed.tdee}</span>
+                kcal
+                <span class="text-xs text-neutral-content/60">
+                  <%= if @computed.basis == :observed do %>
+                    (Oura 14-day average)
+                  <% else %>
+                    (activity multiplier)
+                  <% end %>
+                </span>
+                · goal target <span class="font-medium">{@computed.kcal}</span>
+                kcal
               </p>
               <%= if @resolved do %>
                 <p class="text-base">
@@ -439,6 +467,47 @@ defmodule ElectricbrainWeb.MealLive.Settings do
           <button type="submit" class="btn btn-primary">Save meal settings</button>
         </div>
       </.form>
+
+      <div :if={Oura.configured?()} class="card bg-base-200 border border-base-300">
+        <div class="card-body">
+          <h2 class="card-title">Oura ring</h2>
+          <p class="text-sm text-neutral-content/70">
+            Pulls daily calorie burn into Metrics and upgrades TDEE from the activity-multiplier
+            formula to your measured 14-day average (needs a week of data).
+          </p>
+          <%= if Oura.connected?(@current_user) do %>
+            <div class="flex items-center gap-3 mt-2">
+              <span class="badge badge-success gap-1">
+                <.icon name="hero-check-circle-micro" class="size-3.5" /> Connected
+              </span>
+              <div class="flex-1"></div>
+              <button
+                type="button"
+                phx-click="sync_oura"
+                class="btn btn-sm btn-ghost"
+              >
+                Sync now
+              </button>
+              <button
+                type="button"
+                phx-click="disconnect_oura"
+                data-confirm="Disconnect Oura?"
+                class="btn btn-sm btn-ghost text-error"
+              >
+                Disconnect
+              </button>
+            </div>
+          <% else %>
+            <div class="flex items-center gap-3 mt-2">
+              <span class="text-sm text-neutral-content/60">Not connected</span>
+              <div class="flex-1"></div>
+              <.link href={~p"/oauth/oura/start"} class="btn btn-sm btn-primary">
+                <.icon name="hero-link-micro" class="size-4" /> Connect Oura
+              </.link>
+            </div>
+          <% end %>
+        </div>
+      </div>
 
       <form
         :if={@profile}

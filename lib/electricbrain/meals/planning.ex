@@ -31,19 +31,32 @@ defmodule Electricbrain.Meals.Planning do
   end
 
   def resolved_targets(user, profile) do
-    today = user.timezone |> DateTime.now!() |> DateTime.to_date()
-
-    computed =
-      with {:ok, %{kg: kg}} <- Weight.latest(user, profile),
-           {:ok, computed} <- Targets.compute(profile, Decimal.to_float(kg), today) do
-        computed
-      else
-        _ -> nil
-      end
-
-    case Targets.resolve(profile, computed) do
+    case Targets.resolve(profile, computed_targets(user, profile)) do
       {:ok, resolved} -> {:ok, resolved}
       {:error, :incomplete_targets} -> {:error, :incomplete_targets}
+    end
+  end
+
+  @doc """
+  The computed (pre-override) targets, or nil when there's no weight
+  or the profile can't produce a TDEE. Uses the Oura observed TDEE
+  when enough data exists (see `Oura.Sync.observed_tdee/2`).
+  """
+  def computed_targets(user, profile) do
+    today = user.timezone |> DateTime.now!() |> DateTime.to_date()
+
+    observed =
+      case Electricbrain.Oura.Sync.observed_tdee(user) do
+        {:ok, tdee} -> tdee
+        :none -> nil
+      end
+
+    with {:ok, %{kg: kg}} <- Weight.latest(user, profile),
+         {:ok, computed} <-
+           Targets.compute(profile, Decimal.to_float(kg), today, observed_tdee: observed) do
+      computed
+    else
+      _ -> nil
     end
   end
 

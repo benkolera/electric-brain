@@ -119,6 +119,17 @@ if config_env() == :prod do
           raise("Missing environment variable `GOOGLE_CLIENT_SECRET`!")
   end
 
+  # Oura (per-user OAuth for daily activity — feeds the meals adaptive
+  # TDEE). Optional — the meal settings page hides the Oura card when
+  # unset. Register the app at https://cloud.ouraring.com/oauth/applications.
+  if oura_client_id = System.get_env("OURA_CLIENT_ID") do
+    config :electricbrain,
+      oura_client_id: oura_client_id,
+      oura_client_secret:
+        System.get_env("OURA_CLIENT_SECRET") ||
+          raise("Missing environment variable `OURA_CLIENT_SECRET`!")
+  end
+
   # Web push (VAPID). Generate a keypair once with `mix generate.vapid.keys`
   # and set these env vars. The Settings UI's notification controls degrade
   # gracefully if VAPID_PUBLIC_KEY is missing.

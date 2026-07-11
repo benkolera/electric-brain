@@ -270,6 +270,23 @@ Direction colouring follows the metric's goal: an `at_most` goal
 measurements however you already do — manually on the Metrics page,
 at habit completion, or via a connected device.
 
+## Meals — Oura ring
+
+Connect your Oura ring on the meal settings page and every morning
+Trellis pulls your daily calorie burn into two metrics ("Oura active
+kcal" and "Oura total kcal") that chart like any other series.
+
+The bigger payoff is **adaptive TDEE**: once a week of data exists,
+your calorie target switches from the textbook
+`BMR × activity multiplier` estimate to your **measured 14-day
+average burn** — the targets panel notes which basis is in effect.
+With an observed TDEE the height/birthdate/sex inputs become
+optional; only weight is still needed for the protein split.
+
+Oura retired personal access tokens, so this uses OAuth — the server
+needs `OURA_CLIENT_ID`/`OURA_CLIENT_SECRET` configured (register an
+app at cloud.ouraring.com); the card hides itself otherwise.
+
 ## Planner — the weekly grid
 
 The `/plan` page is the central surface — a Schedule-X calendar

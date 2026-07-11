@@ -116,6 +116,28 @@ defmodule Electricbrain.Accounts.User do
       change set_attribute(:google_token_expires_at, nil)
     end
 
+    update :connect_oura do
+      description "Stores Oura OAuth tokens after a successful OAuth callback"
+      accept [:oura_access_token, :oura_refresh_token, :oura_token_expires_at]
+      require_atomic? false
+    end
+
+    update :refresh_oura_tokens do
+      description "Updates Oura tokens after a refresh-token exchange"
+      accept [:oura_access_token, :oura_refresh_token, :oura_token_expires_at]
+      require_atomic? false
+    end
+
+    update :disconnect_oura do
+      description "Clears Oura OAuth tokens"
+      accept []
+      require_atomic? false
+
+      change set_attribute(:oura_access_token, nil)
+      change set_attribute(:oura_refresh_token, nil)
+      change set_attribute(:oura_token_expires_at, nil)
+    end
+
     create :register_with_auth0 do
       description "Upsert-by-email registration triggered by an Auth0 OAuth callback"
       argument :user_info, :map, allow_nil?: false
@@ -150,6 +172,10 @@ defmodule Electricbrain.Accounts.User do
     end
 
     policy action([:connect_google, :refresh_google_tokens, :disconnect_google]) do
+      authorize_if expr(id == ^actor(:id))
+    end
+
+    policy action([:connect_oura, :refresh_oura_tokens, :disconnect_oura]) do
       authorize_if expr(id == ^actor(:id))
     end
   end
@@ -225,6 +251,16 @@ defmodule Electricbrain.Accounts.User do
     end
 
     attribute :google_token_expires_at, :utc_datetime_usec
+
+    attribute :oura_access_token, :string do
+      sensitive? true
+    end
+
+    attribute :oura_refresh_token, :string do
+      sensitive? true
+    end
+
+    attribute :oura_token_expires_at, :utc_datetime_usec
   end
 
   identities do

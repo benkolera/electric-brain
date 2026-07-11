@@ -52,23 +52,48 @@ defmodule Electricbrain.Meals.Targets do
 
   @doc """
   Full computation from a profile + current weight. Returns
-  `{:ok, %{bmr, tdee, kcal, protein_g, fat_g, carbs_g}}` or
+  `{:ok, %{bmr, tdee, kcal, protein_g, fat_g, carbs_g, basis}}` or
   `{:error, :incomplete_profile}` when height/birthdate/sex are
   missing (weight is the caller's job — see `Meals.Weight`).
+
+  Pass `observed_tdee:` (e.g. an Oura trailing average) to replace the
+  formula's `bmr × activity_multiplier` with a measured burn — `basis`
+  reports `:observed` vs `:formula`, and the body inputs become
+  optional since only the macro split still needs them.
   """
-  def compute(profile, weight_kg, today) do
-    if is_nil(profile.height_cm) or is_nil(profile.birthdate) or is_nil(profile.sex) do
+  def compute(profile, weight_kg, today, opts \\ []) do
+    observed_tdee = Keyword.get(opts, :observed_tdee)
+
+    complete? =
+      not (is_nil(profile.height_cm) or is_nil(profile.birthdate) or is_nil(profile.sex))
+
+    bmr =
+      if complete? do
+        age = age_years(profile.birthdate, today)
+        bmr(profile.sex, weight_kg, to_float(profile.height_cm), age)
+      end
+
+    tdee =
+      cond do
+        observed_tdee -> observed_tdee * 1.0
+        bmr -> tdee(bmr, profile.activity_level)
+        true -> nil
+      end
+
+    if is_nil(tdee) do
       {:error, :incomplete_profile}
     else
-      age = age_years(profile.birthdate, today)
-      bmr = bmr(profile.sex, weight_kg, to_float(profile.height_cm), age)
-      tdee = tdee(bmr, profile.activity_level)
       kcal = goal_kcal(tdee, profile.goal, profile.goal_rate_kcal_per_day)
 
       split =
         macros(kcal, weight_kg, to_float(profile.protein_g_per_kg), to_float(profile.fat_pct))
 
-      {:ok, Map.merge(split, %{bmr: round(bmr), tdee: round(tdee)})}
+      {:ok,
+       Map.merge(split, %{
+         bmr: bmr && round(bmr),
+         tdee: round(tdee),
+         basis: if(observed_tdee, do: :observed, else: :formula)
+       })}
     end
   end
 

@@ -91,6 +91,11 @@ defmodule ElectricbrainWeb.Router do
       get "/callback", GoogleOAuthController, :callback
     end
 
+    scope "/oauth/oura", as: :oura_oauth do
+      get "/start", OuraAuthController, :start
+      get "/callback", OuraAuthController, :callback
+    end
+
     # Dev/test only — serves note image bytes from the in-process Memory
     # adapter. Prod uses presigned S3 URLs directly.
     if Mix.env() in [:dev, :test] do
