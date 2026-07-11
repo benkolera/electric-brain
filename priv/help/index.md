@@ -242,6 +242,21 @@ If the plan changes after confirming, the list rebuilds with updated
 quantities while keeping what you've already checked; ingredients
 that dropped out of the plan disappear from the list.
 
+## Meals — reminders
+
+With push notifications enabled (see Notifications), the meal
+scheduler sends:
+
+* **Meal-time nudges** — "Lunch — Chicken rice · 1.5 servings" a few
+  minutes before each confirmed meal's slot time
+* **Saturday shopping** — "list ready" at your shopping reminder
+  time once next week is confirmed; if you haven't planned yet, a
+  nudge to generate the week instead (once per Saturday)
+* **Sunday prep** — the week's dishes at your prep reminder time
+
+All times are yours to set on the meal settings page, and fire in
+your local timezone.
+
 ## Planner — the weekly grid
 
 The `/plan` page is the central surface — a Schedule-X calendar

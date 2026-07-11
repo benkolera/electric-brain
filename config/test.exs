@@ -1,6 +1,7 @@
 import Config
 config :electricbrain, token_signing_secret: "AipXgxZip7mQmVkrTEaKaZk8MWlP+++J"
 config :electricbrain, :notifications, enabled: false
+config :electricbrain, :meals, enabled: false
 config :electricbrain, :notes_image_store_adapter, Electricbrain.Notes.ImageStore.Memory
 
 # Speed up the focus scheduler so duration_minutes:1 fires in ~10ms.

@@ -18,7 +18,8 @@ defmodule Electricbrain.Application do
         ElectricbrainWeb.Endpoint,
         {AshAuthentication.Supervisor, [otp_app: :electricbrain]},
         Electricbrain.Notifications.Scheduler,
-        Electricbrain.Focus.Scheduler
+        Electricbrain.Focus.Scheduler,
+        Electricbrain.Meals.Scheduler
       ] ++ image_store_children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html

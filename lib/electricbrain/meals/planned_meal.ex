@@ -60,12 +60,18 @@ defmodule Electricbrain.Meals.PlannedMeal do
 
   validations do
     validate {Electricbrain.Validations.OwnedParent,
-              parent: Electricbrain.Meals.MealWeek, field: :meal_week_id}
+              parent: Electricbrain.Meals.MealWeek, field: :meal_week_id} do
+      where changing(:meal_week_id)
+    end
 
     validate {Electricbrain.Validations.OwnedParent,
-              parent: Electricbrain.Meals.Recipe, field: :recipe_id}
+              parent: Electricbrain.Meals.Recipe, field: :recipe_id} do
+      where changing(:recipe_id)
+    end
 
-    validate compare(:servings, greater_than: 0)
+    validate compare(:servings, greater_than: 0) do
+      where changing(:servings)
+    end
   end
 
   attributes do

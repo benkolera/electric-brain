@@ -79,7 +79,11 @@ Single Phoenix app — no umbrella. Deployed as half of the
   scales servings to hit the targets, and is reviewed (swap /
   reservings / regenerate) then confirmed. Confirming builds a
   checkable shopping list with per-ingredient gram totals for the
-  Saturday shop.
+  Saturday shop. A dedicated scheduler (`Meals.Scheduler`) pushes
+  meal-time reminders ("Lunch — Chicken rice · 1.5 servings"),
+  a Saturday shopping-day reminder (or a nudge to generate the plan),
+  and a Sunday prep reminder listing the week's dishes — all at
+  user-local times from the nutrition profile.
 - **Moments** — radical-acceptance pauses (Tara Brach's RAIN: Recognize,
   Allow, Investigate, Nurture). When a craving, urge or feeling pulls,
   open the floating "Pause" button, name what's there, slide an intensity,
@@ -174,6 +178,7 @@ flowchart LR
 
     notifications -.->|"5-min lead<br/>cron tick"| planner
     notifications -.->|"end-of-work +<br/>end-of-break"| focus
+    notifications -.->|"meal times +<br/>Sat shop / Sun prep"| meals
     notifications -.->|"web push"| pushsvc[Browser<br/>Push Service]
 
     planner -.->|"sync"| gcal[Google<br/>Calendar API]

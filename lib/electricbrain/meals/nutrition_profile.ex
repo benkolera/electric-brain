@@ -65,6 +65,12 @@ defmodule Electricbrain.Meals.NutritionProfile do
 
       require_atomic? false
     end
+
+    # Scheduler-internal: Saturday "no plan yet" nudge idempotence.
+    update :mark_nudged do
+      accept [:last_nudged_on]
+      require_atomic? false
+    end
   end
 
   policies do
@@ -79,12 +85,25 @@ defmodule Electricbrain.Meals.NutritionProfile do
 
   validations do
     validate {Electricbrain.Validations.OwnedParent,
-              parent: Electricbrain.Metrics.Metric, field: :weight_metric_id}
+              parent: Electricbrain.Metrics.Metric, field: :weight_metric_id} do
+      where changing(:weight_metric_id)
+    end
 
-    validate compare(:goal_rate_kcal_per_day, greater_than_or_equal_to: 0)
-    validate compare(:protein_g_per_kg, greater_than: 0)
-    validate compare(:fat_pct, greater_than: 0, less_than: 100)
-    validate compare(:max_shakes_per_day, greater_than_or_equal_to: 0)
+    validate compare(:goal_rate_kcal_per_day, greater_than_or_equal_to: 0) do
+      where changing(:goal_rate_kcal_per_day)
+    end
+
+    validate compare(:protein_g_per_kg, greater_than: 0) do
+      where changing(:protein_g_per_kg)
+    end
+
+    validate compare(:fat_pct, greater_than: 0, less_than: 100) do
+      where changing(:fat_pct)
+    end
+
+    validate compare(:max_shakes_per_day, greater_than_or_equal_to: 0) do
+      where changing(:max_shakes_per_day)
+    end
   end
 
   attributes do

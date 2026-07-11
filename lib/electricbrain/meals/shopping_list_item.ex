@@ -62,7 +62,9 @@ defmodule Electricbrain.Meals.ShoppingListItem do
 
   validations do
     validate {Electricbrain.Validations.OwnedParent,
-              parent: Electricbrain.Meals.MealWeek, field: :meal_week_id}
+              parent: Electricbrain.Meals.MealWeek, field: :meal_week_id} do
+      where changing(:meal_week_id)
+    end
   end
 
   attributes do
