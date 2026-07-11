@@ -311,6 +311,40 @@ accepts a plain JSON shape for any other relay:
 Revoke a token any time by generating a new one and deleting the old
 pairing.
 
+## Training — linear A/B strength
+
+`/training` runs a simple linear programme over your exercise pool:
+two alternating session templates (classic **A**: squat, bench, row;
+**B**: squat, press, deadlift 1×5), each ending with accessory slots
+that rotate through the kettlebell/bodyweight pool.
+
+**Progression is automatic:**
+
+* Barbell lifts: hit every set → next session adds the increment
+  (+2.5 kg, +5 kg deadlift). Miss (or skip) any set → the weight
+  repeats; after 3 consecutive misses the lift deloads ~10%, rounded
+  to 2.5 kg, and you build back up.
+* Accessories: hit every set → next time one more rep, up to the
+  ceiling. Kettlebells then jump to the next bell and reps reset;
+  pull ups and dips just keep climbing.
+
+**In the gym** (`/training/session`): tap a set to log it at target
+reps; tap − if you got fewer; tap again to unlog. A rest countdown
+runs between sets. **Finish** applies progression and logs each
+lift's top set and estimated 1RM (Epley) into Metrics — chart them,
+or pin them on the meals progress panel. **Abandon** applies nothing
+and the same session is prescribed next time. Finishing with unlogged
+sets counts them as misses — deliberate: half a session is a stall.
+
+Prescriptions are working sets only — warm-ups are yours, unlogged.
+Single-arm KB movements count target reps per arm. All weights kg.
+
+**Settings** (`/training/settings`): training days + reminder time,
+rest seconds, per-exercise current weight/reps (set your REAL
+working weights before the first session — defaults start near the
+bar) and progression parameters, plus the template editor. Editing a
+weight resets that lift's stall count.
+
 ## Planner — the weekly grid
 
 The `/plan` page is the central surface — a Schedule-X calendar

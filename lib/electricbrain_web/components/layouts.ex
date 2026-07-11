@@ -157,6 +157,11 @@ defmodule ElectricbrainWeb.Layouts do
       </.link>
     </li>
     <li>
+      <.link navigate={~p"/training"} class="font-medium">
+        <.icon name="hero-fire-micro" class="size-4" /> Training
+      </.link>
+    </li>
+    <li>
       <.link navigate={~p"/meals"} class="font-medium">
         <.icon name="hero-cake-micro" class="size-4" /> Meals
       </.link>

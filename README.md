@@ -110,6 +110,17 @@ Single Phoenix app — no umbrella. Deployed as half of the
   code generated in Settings, then redeemed by the plugin for a
   long-lived bearer token (stored as a SHA-256 hash). State is served by
   a small JSON API at `/api/g2/*`; the plugin polls every 10–30 s.
+- **Training** — a linear A/B strength programme (StrongLifts-style)
+  over your exercise pool: barbell lifts add weight each successful
+  session (auto-deload ~10% after 3 stalls), kettlebell/bodyweight
+  accessories rotate through session slots progressing by reps.
+  `/training` shows the week and the next prescribed session;
+  `/training/session` is the phone-first in-gym screen — tap a set to
+  log it at target reps, step down for misses, rest countdown between
+  sets. Finishing applies progression and auto-logs each lift's top
+  set + Epley e1RM into Metrics (charting alongside everything else);
+  abandoning applies nothing. Templates, days, and per-exercise
+  parameters are all editable in settings.
 - **Oura ring** — per-user OAuth pulls daily calorie burn into
   Metrics ("Oura active/total kcal") every morning, and upgrades the
   meal plan's TDEE from the activity-multiplier formula to the
@@ -151,6 +162,7 @@ flowchart LR
         notes[Notes]
         metrics[Metrics<br/>+ Measurement<br/>+ HabitMetric]
         meals[Meals<br/>Ingredient + Recipe<br/>+ NutritionProfile<br/>+ MealWeek]
+        training[Training<br/>Exercise + Template<br/>+ Workout]
         moments[Moments<br/>RAIN journal]
         focus[Focus<br/>Session]
         notifications[Notifications<br/>PushSubscription]
@@ -166,6 +178,7 @@ flowchart LR
     liveview --> notes
     liveview --> metrics
     liveview --> meals
+    liveview --> training
     liveview --> moments
     liveview --> focus
 
@@ -188,6 +201,8 @@ flowchart LR
     metrics -->|"HabitMetric join +<br/>Measurement.completion_id"| habits
 
     meals -->|"weight_metric_id<br/>feeds BMR/TDEE"| metrics
+
+    training -->|"top set + e1RM<br/>per lift"| metrics
 
     notifications -.->|"5-min lead<br/>cron tick"| planner
     notifications -.->|"end-of-work +<br/>end-of-break"| focus
