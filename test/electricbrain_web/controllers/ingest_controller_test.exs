@@ -143,6 +143,28 @@ defmodule ElectricbrainWeb.IngestControllerTest do
              conn |> post_json(token, payload) |> json_response(200)
   end
 
+  test "accepts relay payloads beyond the old 8MB parser default", %{conn: conn, token: token} do
+    # ~12MB of readings on an unmapped key — exercises the raised JSON
+    # parser limit without writing 100k measurements.
+    readings =
+      for i <- 1..120_000 do
+        %{"metric" => "padding_key", "value" => i * 1.0, "recorded_at" => "2026-07-09T07:12:00Z"}
+      end
+
+    payload = Jason.encode!(%{"measurements" => readings})
+    assert byte_size(payload) > 8_000_000
+
+    response =
+      conn
+      |> put_req_header("authorization", "Bearer #{token}")
+      |> put_req_header("content-type", "application/json")
+      |> post(~p"/api/ingest/measurements", payload)
+      |> json_response(200)
+
+    assert response["created"] == 0
+    assert response["unmapped"] == ["padding_key"]
+  end
+
   test "malformed payloads get 422", %{conn: conn, token: token} do
     assert %{"error" => "invalid_payload"} =
              conn

@@ -49,8 +49,11 @@ defmodule ElectricbrainWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  # JSON limit raised from the 8MB default: Health Auto Export relay
+  # posts to /api/ingest/measurements can be tens of MB when the phone
+  # backfills raw samples. Multipart/urlencoded keep their defaults.
   plug Plug.Parsers,
-    parsers: [:urlencoded, :multipart, :json],
+    parsers: [:urlencoded, :multipart, {:json, length: 50_000_000}],
     pass: ["*/*"],
     json_decoder: Phoenix.json_library()
 
