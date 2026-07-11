@@ -20,12 +20,19 @@ defmodule Electricbrain.Meals.Ingest do
 
   Key mapping: `weight`/`weight_body_mass` → the profile's weight
   metric; `body_fat_pct`/`body_fat_percentage` → the body-fat metric.
-  Unmapped or unknown keys are reported back, not stored. Duplicate
-  posts are idempotent — a reading with the same metric and timestamp
-  is skipped.
+  Unmapped or unknown keys are reported back, not stored.
+
+  Parsing is LENIENT per entry: HAE exports carry data points without
+  a plain `qty` for many metric types (heart rate is min/avg/max,
+  sleep is phase fields), so entries that don't match are counted as
+  `skipped` — and logged — rather than failing the whole sync. Only an
+  unrecognisable envelope 422s. Duplicate posts are idempotent — a
+  reading with the same metric and timestamp is skipped as
+  `duplicates`.
   """
 
   require Ash.Query
+  require Logger
 
   alias Electricbrain.Meals
   alias Electricbrain.Metrics.Measurement
@@ -38,27 +45,30 @@ defmodule Electricbrain.Meals.Ingest do
   }
 
   @doc """
-  Returns `{:ok, %{created: n, duplicates: n, unmapped: [key]}}` or
-  `{:error, :invalid_payload}`.
+  Returns `{:ok, %{created: n, duplicates: n, skipped: n, unmapped: [key]}}`
+  or `{:error, :invalid_payload}` (unrecognisable envelope only).
   """
   def ingest(user, payload) do
-    with {:ok, readings} <- normalise(payload) do
+    with {:ok, %{readings: readings, skipped: skipped}} <- normalise(payload) do
       mapping = metric_mapping(user)
 
       result =
-        Enum.reduce(readings, %{created: 0, duplicates: 0, unmapped: MapSet.new()}, fn reading,
-                                                                                       acc ->
-          case Map.fetch(mapping, @key_aliases[reading.key]) do
-            {:ok, metric_id} when is_binary(metric_id) ->
-              case insert(user, metric_id, reading) do
-                :created -> %{acc | created: acc.created + 1}
-                :duplicate -> %{acc | duplicates: acc.duplicates + 1}
-              end
+        Enum.reduce(
+          readings,
+          %{created: 0, duplicates: 0, skipped: skipped, unmapped: MapSet.new()},
+          fn reading, acc ->
+            case Map.fetch(mapping, @key_aliases[reading.key]) do
+              {:ok, metric_id} when is_binary(metric_id) ->
+                case insert(user, metric_id, reading) do
+                  :created -> %{acc | created: acc.created + 1}
+                  :duplicate -> %{acc | duplicates: acc.duplicates + 1}
+                end
 
-            _ ->
-              %{acc | unmapped: MapSet.put(acc.unmapped, reading.key)}
+              _ ->
+                %{acc | unmapped: MapSet.put(acc.unmapped, reading.key)}
+            end
           end
-        end)
+        )
 
       {:ok, %{result | unmapped: Enum.sort(result.unmapped)}}
     end
@@ -92,11 +102,12 @@ defmodule Electricbrain.Meals.Ingest do
       %{"name" => key, "data" => data} when is_binary(key) and is_list(data) ->
         Enum.map(data, &{key, &1})
 
-      _ ->
-        [:invalid]
+      other ->
+        # A metric entry without a name/data list — count as one skip.
+        [{:invalid_metric, other}]
     end)
     |> collect(fn
-      {key, %{"qty" => qty, "date" => date}} when is_number(qty) ->
+      {key, %{"qty" => qty, "date" => date}} when is_binary(key) and is_number(qty) ->
         with {:ok, recorded_at} <- parse_datetime(date) do
           {:ok, %{key: key, value: qty, recorded_at: recorded_at}}
         end
@@ -106,20 +117,47 @@ defmodule Electricbrain.Meals.Ingest do
     end)
   end
 
-  defp normalise(_), do: {:error, :invalid_payload}
+  defp normalise(payload) do
+    Logger.warning(
+      "Ingest: unrecognisable payload envelope, top-level keys: " <>
+        inspect(payload |> Map.keys() |> Enum.take(10))
+    )
 
+    {:error, :invalid_payload}
+  end
+
+  # Lenient per-entry collection: parse what matches, count the rest as
+  # skipped (and log which keys they came from — HAE exports routinely
+  # include shapes we don't ingest, like min/avg/max metrics).
   defp collect(items, fun) do
-    items
-    |> Enum.reduce_while({:ok, []}, fn item, {:ok, acc} ->
-      case fun.(item) do
-        {:ok, reading} -> {:cont, {:ok, [reading | acc]}}
-        _ -> {:halt, {:error, :invalid_payload}}
-      end
-    end)
-    |> case do
-      {:ok, readings} -> {:ok, Enum.reverse(readings)}
-      error -> error
+    {readings, skipped_items} =
+      Enum.reduce(items, {[], []}, fn item, {readings, skipped} ->
+        case fun.(item) do
+          {:ok, reading} -> {[reading | readings], skipped}
+          _ -> {readings, [item | skipped]}
+        end
+      end)
+
+    if skipped_items != [] do
+      Logger.warning(
+        "Ingest: skipped #{length(skipped_items)} unparseable entries " <>
+          "(keys: #{inspect(skipped_keys(skipped_items))})"
+      )
     end
+
+    {:ok, %{readings: Enum.reverse(readings), skipped: length(skipped_items)}}
+  end
+
+  defp skipped_keys(items) do
+    items
+    |> Enum.map(fn
+      {key, _point} when is_binary(key) -> key
+      {:invalid_metric, _} -> "(metric without name/data)"
+      %{"metric" => key} when is_binary(key) -> key
+      _ -> "(unknown)"
+    end)
+    |> Enum.uniq()
+    |> Enum.take(10)
   end
 
   # ISO8601 directly, or Health Auto Export's "yyyy-MM-dd HH:mm:ss Z"

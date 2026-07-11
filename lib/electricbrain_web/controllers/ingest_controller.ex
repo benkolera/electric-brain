@@ -18,6 +18,7 @@ defmodule ElectricbrainWeb.IngestController do
         json(conn, %{
           created: result.created,
           duplicates: result.duplicates,
+          skipped: result.skipped,
           unmapped: result.unmapped
         })
 

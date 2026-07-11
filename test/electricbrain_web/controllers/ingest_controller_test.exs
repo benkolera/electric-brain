@@ -165,10 +165,60 @@ defmodule ElectricbrainWeb.IngestControllerTest do
     assert response["unmapped"] == ["padding_key"]
   end
 
-  test "malformed payloads get 422", %{conn: conn, token: token} do
-    assert %{"error" => "invalid_payload"} =
+  test "unparseable entries are skipped, not fatal (HAE min/avg/max metrics)", %{
+    conn: conn,
+    token: token,
+    user: user,
+    weight: weight
+  } do
+    # A realistic HAE export: weight (qty) alongside heart rate
+    # (min/avg/max — no qty) and a point with a garbage date. Only the
+    # weight readings land; the rest count as skipped.
+    payload = %{
+      "data" => %{
+        "metrics" => [
+          %{
+            "name" => "weight_body_mass",
+            "units" => "kg",
+            "data" => [
+              %{"qty" => 82.5, "date" => "2026-07-09 07:12:00 +1000"},
+              %{"qty" => 82.1, "date" => "not-a-date"}
+            ]
+          },
+          %{
+            "name" => "heart_rate",
+            "units" => "bpm",
+            "data" => [
+              %{"Min" => 48, "Avg" => 62, "Max" => 141, "date" => "2026-07-09 00:00:00 +1000"}
+            ]
+          },
+          %{"units" => "count"}
+        ]
+      }
+    }
+
+    assert %{"created" => 1, "skipped" => 3, "unmapped" => []} =
+             conn |> post_json(token, payload) |> json_response(200)
+
+    [reading] =
+      Electricbrain.Metrics.Measurement
+      |> Ash.Query.filter(metric_id == ^weight.id)
+      |> Ash.read!(actor: user)
+
+    assert Decimal.equal?(reading.value, Decimal.new("82.5"))
+  end
+
+  test "incomplete generic entries are skipped with a count", %{conn: conn, token: token} do
+    assert %{"created" => 0, "skipped" => 1} =
              conn
              |> post_json(token, %{"measurements" => [%{"metric" => "weight"}]})
+             |> json_response(200)
+  end
+
+  test "an unrecognisable envelope still gets 422", %{conn: conn, token: token} do
+    assert %{"error" => "invalid_payload"} =
+             conn
+             |> post_json(token, %{"something" => "else"})
              |> json_response(422)
   end
 end
